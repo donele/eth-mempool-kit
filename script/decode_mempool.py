@@ -3,6 +3,7 @@ import os
 import time
 
 from dotenv import load_dotenv
+from eth_abi import decode
 from web3 import AsyncWeb3, WebSocketProvider
 
 
@@ -90,6 +91,45 @@ SELECTOR_LABELS = {
     "0x414bf389": "exactInputSingle",
     "0xc04b8d59": "exactInput",
 }
+SELECTOR_DECODERS = {
+    # Uniswap V2 Router
+    "0x38ed1739": (
+        "swapExactTokensForTokens",
+        ["uint256", "uint256", "address[]", "address", "uint256"],
+        ["amountIn", "amountOutMin", "path", "to", "deadline"],
+    ),
+    "0x18cbafe5": (
+        "swapExactTokensForETH",
+        ["uint256", "uint256", "address[]", "address", "uint256"],
+        ["amountIn", "amountOutMin", "path", "to", "deadline"],
+    ),
+    "0x7ff36ab5": (
+        "swapExactETHForTokens",
+        ["uint256", "address[]", "address", "uint256"],
+        ["amountOutMin", "path", "to", "deadline"],
+    ),
+    "0xfb3bdb41": (
+        "swapETHForExactTokens",
+        ["uint256", "address[]", "address", "uint256"],
+        ["amountOut", "path", "to", "deadline"],
+    ),
+    "0x4a25d94a": (
+        "swapTokensForExactETH",
+        ["uint256", "uint256", "address[]", "address", "uint256"],
+        ["amountOut", "amountInMax", "path", "to", "deadline"],
+    ),
+    "0x8803dbee": (
+        "swapTokensForExactTokens",
+        ["uint256", "uint256", "address[]", "address", "uint256"],
+        ["amountOut", "amountInMax", "path", "to", "deadline"],
+    ),
+    # Uniswap V3 SwapRouter exactInputSingle
+    "0x04e45aaf": (
+        "exactInputSingle",
+        ["(address,address,uint24,address,uint256,uint256,uint160)"],
+        ["params"],
+    ),
+}
 
 
 def _as_int(value) -> int:
@@ -120,6 +160,14 @@ def _decode_input(tx_input) -> str:
     return f"decoded_input: selector={selector} ({label}), words={words}"
 
 
+def _stringify_decoded_value(value):
+    if isinstance(value, (list, tuple)):
+        return [_stringify_decoded_value(v) for v in value]
+    if isinstance(value, bytes):
+        return f"0x{value.hex()}"
+    return value
+
+
 def _decode_input_verbose(tx_input, max_words: int = 12) -> list[str]:
     if tx_input is None:
         return ["decoded_input_detail: none"]
@@ -137,11 +185,21 @@ def _decode_input_verbose(tx_input, max_words: int = 12) -> list[str]:
     total_bytes = len(payload) // 2
     total_words = len(payload) // 64
     lines = [
-        (
-            "decoded_input_detail: "
-            f"selector={selector} ({label}), bytes={total_bytes}, words={total_words}"
-        )
+        f"decoded_input_detail: selector={selector} ({label}), bytes={total_bytes}, words={total_words}"
     ]
+
+    decoder = SELECTOR_DECODERS.get(selector)
+    if decoder is not None:
+        method_name, arg_types, arg_names = decoder
+        try:
+            raw = bytes.fromhex(payload)
+            values = decode(arg_types, raw)
+            lines.append(f"decoded_method: {method_name}")
+            for arg_name, value in zip(arg_names, values):
+                lines.append(f"  {arg_name}={_stringify_decoded_value(value)}")
+            return lines
+        except Exception as err:
+            lines.append(f"decoded_method_error: {err}")
 
     limit = min(total_words, max_words)
     for i in range(limit):
