@@ -242,10 +242,12 @@ What that means:
 
 - router: `SushiSwap`
 - method: `swapExactTokensForTokens`
-- token in: `0xccc8cb5229b0ac8069c51fd58367fd1e622afd97`
-- token out: `0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2`
+- token in: `0xccc8cb5229b0ac8069c51fd58367fd1e622afd97` = `Gods Unchained: GODS Token (GODS)`
+- token out: `0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2` = `Wrapped Ether (WETH)`
 - exact input size: `1,456,223,114,490,895,000,000`
 - minimum acceptable output: `23,239,156,954,437,964`
+
+In plain English, this transaction is selling `GODS` for `WETH` on SushiSwap.
 
 This transaction is supported by `estimate_arb.py` because:
 
@@ -265,8 +267,8 @@ For this transaction, `estimate_arb.py` performs the following steps.
 3. Recognize the router as SushiSwap.
 4. Infer the comparison venue as Uniswap V2.
 5. Extract the 2-token path:
-   - `tokenA = 0xccc8cb5229b0ac8069c51fd58367fd1e622afd97`
-   - `tokenB = 0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2`
+   - `tokenA = 0xccc8cb5229b0ac8069c51fd58367fd1e622afd97` = `GODS`
+   - `tokenB = 0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2` = `WETH`
 6. Extract the exact-input amount:
    - `amountIn = 1456223114490895000000`
 
@@ -300,10 +302,10 @@ Because this example has a 2-token path, the reverse-direction lookups usually r
 
 After the RPC calls, the script has four ordered reserve views:
 
-- Sushi forward reserves for `tokenA -> tokenB`
-- Uniswap V2 forward reserves for `tokenA -> tokenB`
-- Sushi reverse reserves for `tokenB -> tokenA`
-- Uniswap V2 reverse reserves for `tokenB -> tokenA`
+- Sushi forward reserves for `GODS -> WETH`
+- Uniswap V2 forward reserves for `GODS -> WETH`
+- Sushi reverse reserves for `WETH -> GODS`
+- Uniswap V2 reverse reserves for `WETH -> GODS`
 
 For each hop it uses the standard Uniswap V2 amount-out formula:
 
@@ -317,23 +319,23 @@ All arithmetic is integer arithmetic in raw token units.
 For transaction `058e07...`, the script computes:
 
 1. `route_out_current[SushiSwap]`
-   - simulate swapping `amountIn` on Sushi using current Sushi reserves
+   - simulate swapping `amountIn` of `GODS` on Sushi using current Sushi reserves
 2. `route_out_current[Uniswap V2]`
-   - simulate swapping the same `amountIn` on Uniswap V2 using current Uniswap reserves
+   - simulate swapping the same `GODS` amount on Uniswap V2 using current Uniswap reserves
 3. `gross_cycle_current[SushiSwap->Uniswap V2]`
-   - first leg: swap `tokenA -> tokenB` on Sushi
-   - second leg: swap resulting `tokenB -> tokenA` on Uniswap V2
+   - first leg: swap `GODS -> WETH` on Sushi
+   - second leg: swap resulting `WETH -> GODS` on Uniswap V2
    - subtract original `amountIn`
 4. `gross_cycle_current[Uniswap V2->SushiSwap]`
-   - first leg: swap `tokenA -> tokenB` on Uniswap V2
-   - second leg: swap resulting `tokenB -> tokenA` on Sushi
+   - first leg: swap `GODS -> WETH` on Uniswap V2
+   - second leg: swap resulting `WETH -> GODS` on Sushi
    - subtract original `amountIn`
 5. `gross_cycle_post_victim[Uniswap V2->SushiSwap]`
    - first apply the victim transaction to Sushi forward reserves
-   - this increases Sushi `tokenA` reserve and decreases Sushi `tokenB` reserve
+   - this increases Sushi `GODS` reserve and decreases Sushi `WETH` reserve
    - then simulate the cycle:
-     - buy `tokenB` on Uniswap V2 with `tokenA`
-     - sell `tokenB` back into Sushi after the victim has moved Sushi's price
+     - buy `WETH` on Uniswap V2 with `GODS`
+     - sell `WETH` back into Sushi for `GODS` after the victim has moved Sushi's price
    - subtract original `amountIn`
 
 The post-victim case is the most useful one in this script, because it is the one attempting to answer:
