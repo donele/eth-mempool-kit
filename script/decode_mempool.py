@@ -92,6 +92,57 @@ def _decode_input(tx_input) -> str:
     return f"decoded_input: selector={selector} ({label}), words={words}"
 
 
+def _normalize_input_hex(tx_input) -> str | None:
+    if tx_input is None:
+        return None
+    input_hex = tx_input.hex() if hasattr(tx_input, "hex") else str(tx_input)
+    if not isinstance(input_hex, str):
+        return None
+    if not input_hex.startswith("0x"):
+        input_hex = f"0x{input_hex}"
+    if len(input_hex) < 10:
+        return None
+    return input_hex
+
+
+def _decode_input_structured(tx_input) -> dict | None:
+    input_hex = _normalize_input_hex(tx_input)
+    if input_hex is None:
+        return None
+
+    selector = input_hex[:10].lower()
+    label = SELECTOR_LABELS.get(selector, "unknown_selector")
+    payload = input_hex[10:]
+    result = {
+        "input_hex": input_hex,
+        "selector": selector,
+        "selector_label": label,
+        "payload": payload,
+        "words": len(payload) // 64,
+        "method_name": None,
+        "args": None,
+    }
+
+    decoder = SELECTOR_DECODERS.get(selector)
+    if decoder is None:
+        return result
+
+    method_name, arg_types, arg_names = decoder
+    try:
+        raw = bytes.fromhex(payload)
+        values = decode(arg_types, raw)
+    except Exception as err:
+        result["decode_error"] = str(err)
+        return result
+
+    result["method_name"] = method_name
+    structured_args = {}
+    for arg_name, value in zip(arg_names, values):
+        structured_args[arg_name] = _stringify_decoded_value(value)
+    result["args"] = structured_args
+    return result
+
+
 def _stringify_decoded_value(value):
     if isinstance(value, (list, tuple)):
         return [_stringify_decoded_value(v) for v in value]
@@ -153,12 +204,8 @@ def _decode_1inch_heuristic(selector: str, payload: str) -> list[str]:
 def _decode_input_verbose(tx_input, max_words: int | None = 12) -> list[str]:
     if tx_input is None:
         return ["decoded_input_detail: none"]
-    input_hex = tx_input.hex() if hasattr(tx_input, "hex") else str(tx_input)
-    if not isinstance(input_hex, str):
-        return ["decoded_input_detail: malformed"]
-    if not input_hex.startswith("0x"):
-        input_hex = f"0x{input_hex}"
-    if len(input_hex) < 10:
+    input_hex = _normalize_input_hex(tx_input)
+    if input_hex is None:
         return ["decoded_input_detail: malformed"]
 
     selector = input_hex[:10].lower()
