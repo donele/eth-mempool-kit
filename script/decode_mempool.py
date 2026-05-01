@@ -1,162 +1,67 @@
 import asyncio
 import os
+import random
 import time
+from pathlib import Path
 
 from dotenv import load_dotenv
 from eth_abi import decode
 from web3 import AsyncWeb3, WebSocketProvider
+import yaml
 
 
 load_dotenv(override=True)
 WSS_URL = os.getenv("WSS_URL")
 RUN_SECONDS = 180
-KNOWN_ROUTER_ADDRESSES = {
-    # Uniswap Permit2
-    "0x000000000022d473030f116ddee9f6b43ac78ba3",
-    # Uniswap V2 Router02
-    "0x7a250d5630b4cf539739df2c5dacab4c659f2488",
-    # Uniswap V3 old SwapRouter
-    "0xe592427a0aece92de3edee1f18e0157c05861564",
-    # Uniswap Universal Router
-    "0xef1c6e67703c7bd7107eed8303fbe6ec2554bf6b",
-    # Uniswap V3 SwapRouter02
-    "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
-    # SushiSwap Router
-    "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f",
-    # 1inch Router v5
-    "0x1111111254eeb25477b68fb85ed929f73a960582",
-    # 1inch Aggregation Router v6
-    "0x111111125421ca6dc452d289314280a0f8842a65",
-    # ParaSwap Augustus
-    "0xdef171fe48cf0115b1d80b88dc8eab59176fee57",
-    # 0x Exchange Proxy
-    "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
-    # 0x Exchange Proxy (legacy)
-    "0x61935cbdd02287b511119ddb11aeb42f1593b7ef",
-    # KyberSwap MetaAggregation
-    "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
-    # KyberSwap MetaAggregation (old)
-    "0x9aabad3f75489902f3a48495025729a0af77d4b11",
-    # KyberSwap Aggregation Executor
-    "0x5644b4ddf6c126f90cf3ecb92120fd7190acb401",
-    # OpenOcean
-    "0x6352a56caadc4f1e25cd6c75970fa768a3304e64",
-    # DODO v2 Proxy
-    "0xa356867fdcea8e71aeaf87805808803806231fdc",
-    # OKX DEX Router
-    "0x3b86917369b83a6892f553609f3bad8ddfd549f5",
-    # 1inch Fusion Settlement
-    "0xa88800cd213da5ae406ce248380802bd53b47647",
-    # CoW Protocol Vault Relayer
-    "0xc92e8bdf79f0507f65a392b0ab4667716bfe0110",
-    # MetaMask Swap Router
-    "0x881d40237659c251811cec9c364ef91dc08d300c",
-    # CoW Protocol Settlement
-    "0x9008d19f58aabd9ed0d60971565aa8510560ab41",
-}
-ROUTER_LABELS = {
-    "0x000000000022d473030f116ddee9f6b43ac78ba3": "Uniswap Permit2",
-    "0x7a250d5630b4cf539739df2c5dacab4c659f2488": "Uniswap V2",
-    "0xe592427a0aece92de3edee1f18e0157c05861564": "Uniswap V3 (old)",
-    "0xef1c6e67703c7bd7107eed8303fbe6ec2554bf6b": "Uniswap Universal",
-    "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45": "Uniswap V3",
-    "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f": "SushiSwap",
-    "0x1111111254eeb25477b68fb85ed929f73a960582": "1inch v5",
-    "0x111111125421ca6dc452d289314280a0f8842a65": "1inch v6",
-    "0xdef171fe48cf0115b1d80b88dc8eab59176fee57": "ParaSwap Augustus",
-    "0xdef1c0ded9bec7f1a1670819833240f027b25eff": "0x Exchange Proxy",
-    "0x61935cbdd02287b511119ddb11aeb42f1593b7ef": "0x Exchange Proxy (legacy)",
-    "0x6131b5fae19ea4f9d964eac0408e4408b66337b5": "KyberSwap MetaAggregation",
-    "0x9aabad3f75489902f3a48495025729a0af77d4b11": "KyberSwap MetaAggregation (old)",
-    "0x5644b4ddf6c126f90cf3ecb92120fd7190acb401": "KyberSwap Aggregation Executor",
-    "0x6352a56caadc4f1e25cd6c75970fa768a3304e64": "OpenOcean",
-    "0xa356867fdcea8e71aeaf87805808803806231fdc": "DODO v2 Proxy",
-    "0x3b86917369b83a6892f553609f3bad8ddfd549f5": "OKX DEX Router",
-    "0xa88800cd213da5ae406ce248380802bd53b47647": "1inch Fusion Settlement",
-    "0xc92e8bdf79f0507f65a392b0ab4667716bfe0110": "CoW Vault Relayer",
-    "0x881d40237659c251811cec9c364ef91dc08d300c": "MetaMask Swap Router",
-    "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "CoW Settlement",
-}
-SELECTOR_LABELS = {
-    "0x04e45aaf": "exactInputSingle",
-    "0x09b81346": "exactInput",
-    "0x38ed1739": "swapExactTokensForTokens",
-    "0x18cbafe5": "swapExactTokensForETH",
-    "0x7ff36ab5": "swapExactETHForTokens",
-    "0xfb3bdb41": "swapETHForExactTokens",
-    "0x4a25d94a": "swapTokensForExactETH",
-    "0x8803dbee": "swapTokensForExactTokens",
-    "0xb68fb020": "1inch aggregate-like",
-    "0x07ed2379": "1inch aggregate-like",
-    "0x414bf389": "exactInputSingle",
-    "0xc04b8d59": "exactInput",
-    "0xf28c0498": "exactOutput",
-    "0xdb3e2198": "exactOutputSingle",
-}
-SELECTOR_DECODERS = {
-    # Uniswap V2 Router
-    "0x38ed1739": (
-        "swapExactTokensForTokens",
-        ["uint256", "uint256", "address[]", "address", "uint256"],
-        ["amountIn", "amountOutMin", "path", "to", "deadline"],
-    ),
-    "0x18cbafe5": (
-        "swapExactTokensForETH",
-        ["uint256", "uint256", "address[]", "address", "uint256"],
-        ["amountIn", "amountOutMin", "path", "to", "deadline"],
-    ),
-    "0x7ff36ab5": (
-        "swapExactETHForTokens",
-        ["uint256", "address[]", "address", "uint256"],
-        ["amountOutMin", "path", "to", "deadline"],
-    ),
-    "0xfb3bdb41": (
-        "swapETHForExactTokens",
-        ["uint256", "address[]", "address", "uint256"],
-        ["amountOut", "path", "to", "deadline"],
-    ),
-    "0x4a25d94a": (
-        "swapTokensForExactETH",
-        ["uint256", "uint256", "address[]", "address", "uint256"],
-        ["amountOut", "amountInMax", "path", "to", "deadline"],
-    ),
-    "0x8803dbee": (
-        "swapTokensForExactTokens",
-        ["uint256", "uint256", "address[]", "address", "uint256"],
-        ["amountOut", "amountInMax", "path", "to", "deadline"],
-    ),
-    # Uniswap V3 SwapRouter exactInputSingle
-    "0x04e45aaf": (
-        "exactInputSingle",
-        ["(address,address,uint24,address,uint256,uint256,uint160)"],
-        ["params"],
-    ),
-    "0x414bf389": (
-        "exactInputSingle",
-        ["(address,address,uint24,address,uint256,uint256,uint160)"],
-        ["params"],
-    ),
-    "0xdb3e2198": (
-        "exactOutputSingle",
-        ["(address,address,uint24,address,uint256,uint256,uint160)"],
-        ["params"],
-    ),
-    "0x09b81346": (
-        "exactInput",
-        ["(bytes,address,uint256,uint256,uint256)"],
-        ["params"],
-    ),
-    "0xc04b8d59": (
-        "exactInput",
-        ["(bytes,address,uint256,uint256,uint256)"],
-        ["params"],
-    ),
-    "0xf28c0498": (
-        "exactOutput",
-        ["(bytes,address,uint256,uint256,uint256)"],
-        ["params"],
-    ),
-}
+MAX_TX_LOOKUPS_PER_SEC = float(os.getenv("MAX_TX_LOOKUPS_PER_SEC", "8"))
+LOOKUP_INTERVAL_SECONDS = (
+    1.0 / MAX_TX_LOOKUPS_PER_SEC if MAX_TX_LOOKUPS_PER_SEC > 0 else 0.0
+)
+RATE_LIMIT_RETRIES = int(os.getenv("RATE_LIMIT_RETRIES", "5"))
+RATE_LIMIT_BASE_BACKOFF_SECONDS = float(
+    os.getenv("RATE_LIMIT_BASE_BACKOFF_SECONDS", "0.5")
+)
+CONFIG_PATH = Path(__file__).with_name("decode_config.yaml")
+
+
+def _load_decode_config(config_path: Path) -> tuple[dict, dict, dict]:
+    with config_path.open() as f:
+        config = yaml.safe_load(f) or {}
+
+    router_labels = config.get("router_labels")
+    selector_labels = config.get("selector_labels")
+    selector_decoders_raw = config.get("selector_decoders")
+    if not isinstance(router_labels, dict):
+        raise ValueError("decode_config.yaml missing mapping: router_labels")
+    if not isinstance(selector_labels, dict):
+        raise ValueError("decode_config.yaml missing mapping: selector_labels")
+    if not isinstance(selector_decoders_raw, dict):
+        raise ValueError("decode_config.yaml missing mapping: selector_decoders")
+
+    selector_decoders = {}
+    for selector, decoder_config in selector_decoders_raw.items():
+        if not isinstance(decoder_config, dict):
+            raise ValueError(f"selector_decoders[{selector}] must be a mapping")
+        method_name = decoder_config.get("method_name")
+        arg_types = decoder_config.get("arg_types")
+        arg_names = decoder_config.get("arg_names")
+        if not isinstance(method_name, str):
+            raise ValueError(f"selector_decoders[{selector}].method_name must be a string")
+        if not isinstance(arg_types, list) or not all(
+            isinstance(item, str) for item in arg_types
+        ):
+            raise ValueError(f"selector_decoders[{selector}].arg_types must be a list[str]")
+        if not isinstance(arg_names, list) or not all(
+            isinstance(item, str) for item in arg_names
+        ):
+            raise ValueError(f"selector_decoders[{selector}].arg_names must be a list[str]")
+        selector_decoders[selector] = (method_name, arg_types, arg_names)
+
+    return router_labels, selector_labels, selector_decoders
+
+
+ROUTER_LABELS, SELECTOR_LABELS, SELECTOR_DECODERS = _load_decode_config(CONFIG_PATH)
+KNOWN_ROUTER_ADDRESSES = set(ROUTER_LABELS)
 
 
 def _as_int(value) -> int:
@@ -315,6 +220,37 @@ def router_interest_values(tx) -> tuple[int, int] | None:
     return value_wei, effective_max_fee
 
 
+def _is_rate_limit_error(err: Exception) -> bool:
+    err_text = str(err).lower()
+    return (
+        "429" in err_text
+        or "compute units per second" in err_text
+        or "throughput" in err_text
+        or "rate limit" in err_text
+        or "too many requests" in err_text
+    )
+
+
+async def _get_transaction_with_retry(w3: AsyncWeb3, tx_hash):
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        try:
+            return await w3.eth.get_transaction(tx_hash)
+        except Exception as err:
+            if not _is_rate_limit_error(err) or attempt >= RATE_LIMIT_RETRIES:
+                raise
+
+            backoff = RATE_LIMIT_BASE_BACKOFF_SECONDS * (2**attempt)
+            jitter = random.uniform(0.0, 0.25)
+            delay = backoff + jitter
+            print(
+                "rate_limited: "
+                f"attempt={attempt + 1}/{RATE_LIMIT_RETRIES + 1}, "
+                f"sleeping={delay:.2f}s, "
+                f"error={err}"
+            )
+            await asyncio.sleep(delay)
+
+
 async def stream_pending_transactions() -> None:
     if not WSS_URL:
         raise ValueError("Missing WSS_URL in .env")
@@ -335,7 +271,11 @@ async def stream_pending_transactions() -> None:
             started_at = time.monotonic()
             subscription_iter = w3.socket.process_subscriptions()
             total_seen = 0
+            total_lookups = 0
+            skipped_due_to_sampling = 0
+            rate_limit_errors = 0
             interesting_hits = 0
+            next_lookup_at = time.monotonic()
             while True:
                 elapsed = time.monotonic() - started_at
                 remaining = RUN_SECONDS - elapsed
@@ -357,9 +297,16 @@ async def stream_pending_transactions() -> None:
                     continue
                 total_seen += 1
 
+                now = time.monotonic()
+                if LOOKUP_INTERVAL_SECONDS > 0 and now < next_lookup_at:
+                    skipped_due_to_sampling += 1
+                    continue
+
                 try:
-                    # get_transaction() takes 5 - 50 ms
-                    tx = await w3.eth.get_transaction(tx_hash)
+                    # Sample pending hashes at a controlled rate to stay under provider CU/s limits.
+                    tx = await _get_transaction_with_retry(w3, tx_hash)
+                    total_lookups += 1
+                    next_lookup_at = time.monotonic() + LOOKUP_INTERVAL_SECONDS
 
                     # Instead of sending (public key, signature), Etherium sends (r, s, v)
                     # Then nodes reconstruct public key and deriveaddress
@@ -390,11 +337,16 @@ async def stream_pending_transactions() -> None:
                         for line in _decode_input_verbose(tx.get("input")):
                             print(line)
                 except Exception as err:
+                    if _is_rate_limit_error(err):
+                        rate_limit_errors += 1
                     print(f"error: {err}")
             ratio = (interesting_hits / total_seen) if total_seen else 0.0
             print(
                 "Summary: "
                 f"total_seen={total_seen}, "
+                f"total_lookups={total_lookups}, "
+                f"skipped_due_to_sampling={skipped_due_to_sampling}, "
+                f"rate_limit_errors={rate_limit_errors}, "
                 f"interesting_hits={interesting_hits}, "
                 f"interesting_ratio={ratio:.4f}"
             )
