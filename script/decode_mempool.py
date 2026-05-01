@@ -150,7 +150,7 @@ def _decode_1inch_heuristic(selector: str, payload: str) -> list[str]:
     return lines
 
 
-def _decode_input_verbose(tx_input, max_words: int = 12) -> list[str]:
+def _decode_input_verbose(tx_input, max_words: int | None = 12) -> list[str]:
     if tx_input is None:
         return ["decoded_input_detail: none"]
     input_hex = tx_input.hex() if hasattr(tx_input, "hex") else str(tx_input)
@@ -191,7 +191,7 @@ def _decode_input_verbose(tx_input, max_words: int = 12) -> list[str]:
     if selector in {"0x07ed2379", "0xb68fb020"}:
         lines.extend(_decode_1inch_heuristic(selector, payload))
 
-    limit = min(total_words, max_words)
+    limit = total_words if max_words is None else min(total_words, max_words)
     for i in range(limit):
         chunk = payload[i * 64 : (i + 1) * 64]
         if len(chunk) != 64:

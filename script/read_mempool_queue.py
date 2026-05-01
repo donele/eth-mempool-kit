@@ -1,15 +1,19 @@
+import argparse
 import asyncio
 import os
 import random
+import sys
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 
 from dotenv import load_dotenv
 from web3 import AsyncWeb3, WebSocketProvider
+import yaml
 
 
 load_dotenv(override=True)
 WSS_URL = os.getenv("WSS_URL")
-RUN_SECONDS = 180
 MAX_TX_LOOKUPS_PER_SEC = float(os.getenv("MAX_TX_LOOKUPS_PER_SEC", "48"))
 LOOKUP_INTERVAL_SECONDS = (
     1.0 / MAX_TX_LOOKUPS_PER_SEC if MAX_TX_LOOKUPS_PER_SEC > 0 else 0.0
@@ -20,6 +24,20 @@ RATE_LIMIT_BASE_BACKOFF_SECONDS = float(
 )
 QUEUE_MAXSIZE = int(os.getenv("TX_QUEUE_MAXSIZE", "1000"))
 NUM_CONSUMERS = int(os.getenv("TX_CONSUMER_COUNT", "4"))
+CONFIG_PATH = Path(__file__).with_name("decode_config.yaml")
+
+
+def _load_router_labels(config_path: Path) -> dict[str, str]:
+    with config_path.open() as f:
+        config = yaml.safe_load(f) or {}
+    router_labels = config.get("router_labels")
+    if not isinstance(router_labels, dict):
+        raise ValueError("decode_config.yaml missing mapping: router_labels")
+    return router_labels
+
+
+ROUTER_LABELS = _load_router_labels(CONFIG_PATH)
+KNOWN_ROUTER_ADDRESSES = set(ROUTER_LABELS)
 
 
 def _is_rate_limit_error(err: Exception) -> bool:
@@ -99,22 +117,11 @@ async def _produce_tx_hashes(
     w3: AsyncWeb3,
     tx_queue: asyncio.Queue,
     stats: Stats,
-) -> str:
+) -> None:
     subscription_iter = w3.socket.process_subscriptions()
-    started_at = time.monotonic()
 
     while True:
-        elapsed = time.monotonic() - started_at
-        remaining = RUN_SECONDS - elapsed
-        if remaining <= 0:
-            print("Reached runtime limit (180s). Exiting.")
-            return "runtime_limit"
-
-        try:
-            message = await asyncio.wait_for(anext(subscription_iter), timeout=remaining)
-        except asyncio.TimeoutError:
-            print("Reached runtime limit (180s). Exiting.")
-            return "runtime_limit"
+        message = await anext(subscription_iter)
 
         tx_hash = message.get("result")
         if not tx_hash:
@@ -133,6 +140,7 @@ async def _consume_tx_hashes(
     tx_queue: asyncio.Queue,
     stats: Stats,
     rate_limiter: SharedRateLimiter,
+    filter_known_routers: bool,
 ) -> None:
     while True:
         tx_hash = await tx_queue.get()
@@ -140,22 +148,29 @@ async def _consume_tx_hashes(
             if tx_hash is None:
                 return
 
-            printable_hash = (
-                tx_hash.hex() if isinstance(tx_hash, (bytes, bytearray)) else tx_hash
-            )
-            print(f"TRANSACTION HASH: {printable_hash}")
-
             try:
                 await rate_limiter.acquire()
                 tx = await _get_transaction_with_retry(w3, tx_hash)
                 await stats.incr("total_lookups")
+                to_addr = tx.get("to")
+                to_addr_normalized = to_addr.lower() if isinstance(to_addr, str) else ""
+                if filter_known_routers and to_addr_normalized not in KNOWN_ROUTER_ADDRESSES:
+                    continue
+
+                printable_hash = (
+                    tx_hash.hex() if isinstance(tx_hash, (bytes, bytearray)) else tx_hash
+                )
                 snapshot = await stats.snapshot()
                 elapsed = max(time.monotonic() - snapshot["started_at"], 1e-9)
                 avg_lookups_per_sec = snapshot["total_lookups"] / elapsed
+                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+                print(f"{timestamp} TRANSACTION HASH: {printable_hash}")
                 print(
                     f"queue_size={tx_queue.qsize()} "
                     f"avg_lookups_per_sec={avg_lookups_per_sec:.2f}"
                 )
+                if to_addr_normalized in KNOWN_ROUTER_ADDRESSES:
+                    print(f"router={ROUTER_LABELS[to_addr_normalized]}")
 
                 # Instead of sending (public key, signature), Etherium sends (r, s, v)
                 # Then nodes reconstruct public key and deriveaddress
@@ -164,15 +179,18 @@ async def _consume_tx_hashes(
                 # tx.from is recovered and validated by the node from (r, s, v)
 
                 print(tx)
+                if filter_known_routers:
+                    sys.stdout.flush()
             except Exception as err:
                 if _is_rate_limit_error(err):
                     await stats.incr("rate_limit_errors")
-                print(f"error: {err}")
+                if not filter_known_routers:
+                    print(f"error: {err}")
         finally:
             tx_queue.task_done()
 
 
-async def stream_pending_transactions() -> None:
+async def stream_pending_transactions(filter_known_routers: bool) -> None:
     if not WSS_URL:
         raise ValueError("Missing WSS_URL in .env")
     if not WSS_URL.startswith("wss://"):
@@ -193,7 +211,15 @@ async def stream_pending_transactions() -> None:
         print(f"Subscribed to pending transactions: {subscription_id}")
 
         consumers = [
-            asyncio.create_task(_consume_tx_hashes(w3, tx_queue, stats, rate_limiter))
+            asyncio.create_task(
+                _consume_tx_hashes(
+                    w3,
+                    tx_queue,
+                    stats,
+                    rate_limiter,
+                    filter_known_routers,
+                )
+            )
             for _ in range(NUM_CONSUMERS)
         ]
 
@@ -222,8 +248,16 @@ async def stream_pending_transactions() -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-f",
+        action="store_true",
+        dest="filter_known_routers",
+        help="only print transactions whose 'to' address is a known router",
+    )
+    args = parser.parse_args()
     try:
-        asyncio.run(stream_pending_transactions())
+        asyncio.run(stream_pending_transactions(args.filter_known_routers))
     except KeyboardInterrupt:
         print("\nStopped.")
 
