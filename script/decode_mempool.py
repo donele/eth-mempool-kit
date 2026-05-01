@@ -79,6 +79,7 @@ ROUTER_LABELS = {
 }
 SELECTOR_LABELS = {
     "0x04e45aaf": "exactInputSingle",
+    "0x09b81346": "exactInput",
     "0x38ed1739": "swapExactTokensForTokens",
     "0x18cbafe5": "swapExactTokensForETH",
     "0x7ff36ab5": "swapExactETHForTokens",
@@ -87,9 +88,10 @@ SELECTOR_LABELS = {
     "0x8803dbee": "swapTokensForExactTokens",
     "0xb68fb020": "1inch aggregate-like",
     "0x07ed2379": "1inch aggregate-like",
-    "0x09b81346": "v3 exactInput-like",
     "0x414bf389": "exactInputSingle",
     "0xc04b8d59": "exactInput",
+    "0xf28c0498": "exactOutput",
+    "0xdb3e2198": "exactOutputSingle",
 }
 SELECTOR_DECODERS = {
     # Uniswap V2 Router
@@ -127,6 +129,31 @@ SELECTOR_DECODERS = {
     "0x04e45aaf": (
         "exactInputSingle",
         ["(address,address,uint24,address,uint256,uint256,uint160)"],
+        ["params"],
+    ),
+    "0x414bf389": (
+        "exactInputSingle",
+        ["(address,address,uint24,address,uint256,uint256,uint160)"],
+        ["params"],
+    ),
+    "0xdb3e2198": (
+        "exactOutputSingle",
+        ["(address,address,uint24,address,uint256,uint256,uint160)"],
+        ["params"],
+    ),
+    "0x09b81346": (
+        "exactInput",
+        ["(bytes,address,uint256,uint256,uint256)"],
+        ["params"],
+    ),
+    "0xc04b8d59": (
+        "exactInput",
+        ["(bytes,address,uint256,uint256,uint256)"],
+        ["params"],
+    ),
+    "0xf28c0498": (
+        "exactOutput",
+        ["(bytes,address,uint256,uint256,uint256)"],
         ["params"],
     ),
 }
@@ -168,6 +195,56 @@ def _stringify_decoded_value(value):
     return value
 
 
+def _decode_v3_path(path_bytes) -> str:
+    if not isinstance(path_bytes, (bytes, bytearray)) or len(path_bytes) < 43:
+        return "invalid_path"
+    if (len(path_bytes) - 20) % 23 != 0:
+        return "invalid_path"
+
+    parts = []
+    offset = 0
+    token_in = f"0x{path_bytes[offset:offset+20].hex()}"
+    offset += 20
+    while offset < len(path_bytes):
+        fee = int.from_bytes(path_bytes[offset:offset+3], "big")
+        offset += 3
+        token_out = f"0x{path_bytes[offset:offset+20].hex()}"
+        offset += 20
+        parts.append(f"{token_in}-[{fee}]->{token_out}")
+        token_in = token_out
+    return " | ".join(parts)
+
+
+def _decode_1inch_heuristic(selector: str, payload: str) -> list[str]:
+    lines = [f"decoded_1inch_heuristic: selector={selector}"]
+    if len(payload) < 64 * 5:
+        lines.append("  payload too short for heuristic fields")
+        return lines
+
+    words = [payload[i * 64 : (i + 1) * 64] for i in range(min(10, len(payload) // 64))]
+
+    def as_addr(word: str) -> str:
+        return f"0x{word[-40:]}"
+
+    def as_int(word: str) -> int:
+        return int(word, 16)
+
+    if selector == "0x07ed2379":
+        lines.append("  format_guess=1inch_v6_aggregation")
+        lines.append(f"  srcToken_guess={as_addr(words[1])}")
+        lines.append(f"  dstToken_guess={as_addr(words[2])}")
+        lines.append(f"  amount_guess={as_int(words[5])}")
+        lines.append(f"  minReturn_guess={as_int(words[6])}")
+    elif selector == "0xb68fb020":
+        lines.append("  format_guess=1inch_compact_aggregation")
+        lines.append(f"  flags_or_amount_guess={as_int(words[0])}")
+        lines.append(f"  route_blob_head=0x{words[1]}")
+    else:
+        lines.append("  no selector-specific heuristic parser")
+
+    return lines
+
+
 def _decode_input_verbose(tx_input, max_words: int = 12) -> list[str]:
     if tx_input is None:
         return ["decoded_input_detail: none"]
@@ -197,9 +274,17 @@ def _decode_input_verbose(tx_input, max_words: int = 12) -> list[str]:
             lines.append(f"decoded_method: {method_name}")
             for arg_name, value in zip(arg_names, values):
                 lines.append(f"  {arg_name}={_stringify_decoded_value(value)}")
+            if method_name in ("exactInput", "exactOutput") and values:
+                params = values[0]
+                if isinstance(params, tuple) and len(params) >= 1:
+                    path_bytes = params[0]
+                    lines.append(f"  decoded_path={_decode_v3_path(path_bytes)}")
             return lines
         except Exception as err:
             lines.append(f"decoded_method_error: {err}")
+
+    if selector in {"0x07ed2379", "0xb68fb020"}:
+        lines.extend(_decode_1inch_heuristic(selector, payload))
 
     limit = min(total_words, max_words)
     for i in range(limit):
