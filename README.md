@@ -266,6 +266,10 @@ For this transaction, `estimate_arb.py` performs the following steps.
 2. Decode the calldata using `decode_mempool._decode_input_structured(...)`.
 3. Recognize the router as SushiSwap.
 4. Infer the comparison venue as Uniswap V2.
+   - this does not mean SushiSwap is part of Uniswap
+   - it means the estimator compares two separate V2-style venues for the same token pair
+   - because the victim transaction is on SushiSwap, the current implementation chooses Uniswap V2 as the comparison venue
+   - if the victim transaction were on Uniswap V2, the estimator would compare against SushiSwap instead
 5. Extract the 2-token path:
    - `tokenA = 0xccc8cb5229b0ac8069c51fd58367fd1e622afd97` = `GODS`
    - `tokenB = 0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2` = `WETH`
@@ -341,6 +345,8 @@ For transaction `058e07...`, the script computes:
 The post-victim case is the most useful one in this script, because it is the one attempting to answer:
 
 - If this Sushi swap lands first, does it open a backrun on Uniswap V2 -> Sushi?
+
+In other words, the estimator is checking whether a trade on one venue moves the pair far enough away from the price on the other venue to create a simple two-pool arbitrage.
 
 ### What The Worked Example Still Does Not Prove
 
