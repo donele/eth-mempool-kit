@@ -258,6 +258,298 @@ Optional but useful:
 - current base fee
 - pool observations if you care about TWAP behavior later
 
+## Worked Example: `35f07f...`
+
+This section uses the real example captured in:
+
+- [script/filtered_20260501_1528.log](/home/jdlee/repos/eth-mempool-kit/script/filtered_20260501_1528.log:23)
+- [script/decoded_20260501_1528.log](/home/jdlee/repos/eth-mempool-kit/script/decoded_20260501_1528.log:195)
+- [script/simulate_35f07f.log](/home/jdlee/repos/eth-mempool-kit/script/simulate_35f07f.log:1)
+
+The current `simulate_v3_exact_input_single.py` does not yet simulate a candidate backrun trade. It replays the victim swap exactly, snapshots the pool before and after, and reports how the swap moved price and balances.
+
+### Original Captured Transaction
+
+```text
+2026-05-01 19:32:38.639162 TRANSACTION HASH: 35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f
+queue_size=2 avg_lookups_per_sec=15.80
+router=Uniswap V3
+AttributeDict({'type': 2, 'chainId': 1, 'nonce': 145, 'gas': 200041, 'maxFeePerGas': 572754988, 'maxPriorityFeePerGas': 100, 'to': '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45', 'value': 0, 'accessList': [], 'input': HexBytes('0x04e45aaf000000000000000000000000e820c06321e60d36257c666643fa5436643445e3000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec7000000000000000000000000000000000000000000000000000000000000006400000000000000000000000074d9c49327f92b45f3136ae5304079e0204c6f690000000000000000000000000000000000000000000000000000000042bde168000000000000000000000000000000000000000000000000000000004268737a0000000000000000000000000000000000000000000000000000000000000000'), 'r': HexBytes('0xe84f778fd15a101021b534fb9b1de86198cf3fd2b4491ddfdaf3bf894b362f27'), 's': HexBytes('0x20819c56a86698ce9f5f77e64f8c5842319b9334625f0f65c7b375b6c3f5b13e'), 'yParity': 0, 'v': 0, 'hash': HexBytes('0x35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f'), 'blockHash': None, 'blockNumber': None, 'transactionIndex': None, 'from': '0x74d9c49327F92b45F3136Ae5304079e0204c6F69', 'gasPrice': 572754988})
+```
+
+Line by line:
+
+- `TRANSACTION HASH: ...`
+  - the mempool transaction identifier
+- `queue_size=2 avg_lookups_per_sec=15.80`
+  - logger-side runtime stats from `read_mempool_queue.py`
+  - not part of the Ethereum transaction itself
+- `router=Uniswap V3`
+  - the transaction `to` address matches the configured Uniswap V3 `SwapRouter02`
+- `type: 2`
+  - EIP-1559 transaction
+- `chainId: 1`
+  - Ethereum mainnet
+- `nonce: 145`
+  - this sender had already sent 145 prior transactions
+- `gas: 200041`
+  - user-supplied gas limit for the swap
+- `maxFeePerGas: 572754988`
+  - absolute EIP-1559 fee cap in wei
+- `maxPriorityFeePerGas: 100`
+  - very small tip in wei
+- `to: 0x68b3...5Fc45`
+  - Uniswap V3 `SwapRouter02`
+- `value: 0`
+  - ERC-20 to ERC-20 swap, no ETH attached
+- `accessList: []`
+  - no access list was supplied
+- `input: HexBytes('0x04e45aaf...')`
+  - calldata for `exactInputSingle`
+- `r`, `s`, `yParity`, `v`
+  - signature fields
+- `hash: 0x35f07f...`
+  - same tx hash, duplicated inside the decoded object
+- `blockHash: None`, `blockNumber: None`, `transactionIndex: None`
+  - this was still pending when captured
+- `from: 0x74d9...6F69`
+  - transaction sender
+- `gasPrice: 572754988`
+  - effective legacy-style gas price view emitted by Web3 for a type-2 tx
+
+### Decoded Transaction
+
+```text
+2026-05-01 19:32:38.639162 TRANSACTION HASH: 35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f
+router=Uniswap V3
+decoded_input: selector=0x04e45aaf (exactInputSingle), words=7
+decoded_input_detail: selector=0x04e45aaf (exactInputSingle), bytes=224, words=7
+decoded_method: exactInputSingle
+  params=['0xe820c06321e60d36257c666643fa5436643445e3', '0xdac17f958d2ee523a2206206994597c13d831ec7', 100, '0x74d9c49327f92b45f3136ae5304079e0204c6f69', 1119740264, 1114141562, 0]
+```
+
+Line by line:
+
+- `selector=0x04e45aaf`
+  - first 4 bytes of calldata
+  - mapped in `decode_config.yaml` to `exactInputSingle`
+- `words=7`, `bytes=224`
+  - the ABI payload after the 4-byte selector is 7 words long
+- `decoded_method: exactInputSingle`
+  - the decoder matched the selector and ABI layout
+- `params=[...]`
+  - these are the fields of the Uniswap V3 `ExactInputSingleParams` struct in order:
+- `0xe820...45e3`
+  - `tokenIn`
+  - the input token is `USDKG`
+- `0xdAC1...1ec7`
+  - `tokenOut`
+  - the output token is `USDT`
+- `100`
+  - fee tier
+  - this is the 0.01% Uniswap V3 pool
+- `0x74d9...6f69`
+  - recipient
+  - in this example the sender receives the output directly
+- `1119740264`
+  - `amountIn`
+  - the user is selling 1,119,740,264 raw `USDKG` units
+- `1114141562`
+  - `amountOutMinimum`
+  - if the router cannot deliver at least this many raw `USDT` units, the transaction should revert
+- `0`
+  - `sqrtPriceLimitX96`
+  - zero means “no explicit price limit beyond pool mechanics”
+
+### Simulation Result
+
+```text
+2026-05-01 19:32:38.639162 TRANSACTION HASH: 35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f
+router=Uniswap V3
+simulation_scope=replay_victim_exact_input_single fork_based
+upstream_tx_hash=0x35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f
+fork_reset_block=25002214
+anvil_block_before=25002214
+anvil_block_after=25002215
+sender=0x74d9c49327F92b45F3136Ae5304079e0204c6F69
+recipient=0x74d9c49327f92b45f3136ae5304079e0204c6f69
+pool=0x1320483123658e2192CEb6c4150a759f4398c5e4
+path=USDKG(0xE820C06321E60d36257C666643Fa5436643445E3) -> USDT(0xdAC17F958D2ee523a2206206994597C13D831ec7)
+fee_tier=100
+amount_in=1,119,740,264
+amount_out_min=1,114,141,562
+sqrt_price_limit_x96=0
+replay_tx_hash=ddf68e5312c255c2885f434209bd7d27f175c5ce6fcd9150cacfab5016b92b38
+replay_status=1
+replay_gas_used=180440
+slot0_before.sqrtPriceX96=79228161763885571377991070712
+slot0_before.tick=-1
+slot0_after.sqrtPriceX96=79228430954313881014280919578
+slot0_after.tick=0
+slot0_delta.tick=1
+liquidity_before=400717328425834
+liquidity_after=329330151646718
+tick_spacing=1
+quote_before=1,119,624,507
+quote_after=1,119,616,895
+quote_delta=-7,612
+pool_token0_balance_before=310,524,575,052
+pool_token0_balance_after=309,404,950,545
+pool_token1_balance_before=685,023,741,380
+pool_token1_balance_after=686,143,481,644
+sender_token_in_balance_before=1,135,740,264
+sender_token_in_balance_after=16,000,000
+sender_token_out_balance_before=0
+sender_token_out_balance_after=1,119,624,507
+sender_eth_balance_before=12,184,078,055,765,016
+sender_eth_balance_after=999,999,765,329,953,956,320
+```
+
+Line by line:
+
+- `simulation_scope=replay_victim_exact_input_single fork_based`
+  - this is only a victim replay
+  - no searcher trade is executed afterward
+- `upstream_tx_hash=...`
+  - the original mainnet transaction being replayed
+- `fork_reset_block=25002214`
+  - the script resets Anvil to one block before the real inclusion block
+  - this is meant to approximate pre-transaction state
+- `anvil_block_before=25002214`
+  - fork state before sending the replay
+- `anvil_block_after=25002215`
+  - replay mined one local block later on Anvil
+- `sender=...`
+  - account impersonated on Anvil to submit the same call
+- `recipient=...`
+  - recipient from the decoded params
+- `pool=0x1320...c5e4`
+  - V3 pool found via `factory.getPool(tokenIn, tokenOut, fee)`
+- `path=USDKG -> USDT`
+  - human-readable version of the token pair
+- `fee_tier=100`
+  - confirms the 0.01% pool
+- `amount_in`, `amount_out_min`, `sqrt_price_limit_x96`
+  - direct restatement of the decoded swap parameters
+- `replay_tx_hash=...`
+  - the local Anvil transaction hash, not the original mainnet hash
+- `replay_status=1`
+  - success
+- `replay_gas_used=180440`
+  - gas consumed on the replay
+- `slot0_before.sqrtPriceX96`, `slot0_after.sqrtPriceX96`
+  - core Uniswap V3 price state before and after the trade
+  - the increase means the encoded pool price moved upward
+  - the script reports the raw state change and does not try to infer a trading decision from `sqrtPriceX96` alone
+- `slot0_before.tick=-1`, `slot0_after.tick=0`
+  - the trade moved the active tick up by one
+- `slot0_delta.tick=1`
+  - concise summary of that tick movement
+- `liquidity_before=400717328425834`
+  - active in-range liquidity before the swap
+- `liquidity_after=329330151646718`
+  - active liquidity after the swap
+  - this changed because the swap crossed into a new active region
+- `tick_spacing=1`
+  - this pool supports very fine tick increments
+- `quote_before=1,119,624,507`
+  - if you asked the quoter for the same `amountIn` before replay, this is the current output
+- `quote_after=1,119,616,895`
+  - same quote after replay
+- `quote_delta=-7,612`
+  - the same trade became worse by 7,612 raw `USDT` units after the victim executed
+  - that is the direct local price impact measured by the script
+- `pool_token0_balance_before=310,524,575,052`
+  - pool holdings of `token0` before replay
+  - in this pool, `token0` is `USDT`
+- `pool_token0_balance_after=309,404,950,545`
+  - pool holdings of `USDT` after replay
+  - down by 1,119,624,507, which matches the delivered output token amount
+- `pool_token1_balance_before=685,023,741,380`
+  - pool holdings of `token1` before replay
+  - in this pool, `token1` is `USDKG`
+- `pool_token1_balance_after=686,143,481,644`
+  - pool holdings of `USDKG` after replay
+  - up by 1,119,740,264, which matches the victim input amount
+- `sender_token_in_balance_before=1,135,740,264`
+  - sender started with enough `USDKG` to execute the trade
+- `sender_token_in_balance_after=16,000,000`
+  - sender spent 1,119,740,264 `USDKG`
+- `sender_token_out_balance_before=0`
+  - sender had no `USDT` beforehand
+- `sender_token_out_balance_after=1,119,624,507`
+  - sender received the quoted `USDT` amount
+- `sender_eth_balance_before=12,184,078,055,765,016`
+  - actual sender ETH balance on the fork before impersonation top-up
+- `sender_eth_balance_after=999,999,765,329,953,956,320`
+  - after top-up and replay
+  - this number is not economically meaningful for the original user because the simulator intentionally injects ETH with `anvil_setBalance` to guarantee the replay can pay gas
+
+### How The Simulation Ran
+
+For this example, `simulate_v3_exact_input_single.py` performed these steps.
+
+1. Parse `decoded_20260501_1528.log` and select tx `35f07f...`.
+2. Query upstream RPC with `eth_getTransactionByHash` for the full transaction.
+3. Query upstream RPC with `eth_getTransactionReceipt` for the real inclusion block.
+4. Call Anvil `anvil_reset` with `blockNumber = receipt.blockNumber - 1`.
+5. Decode `tx.input` locally with `_decode_input_structured(...)`.
+6. Call Uniswap V3 factory `getPool(tokenIn, tokenOut, fee)` to find the pool.
+7. Snapshot pre-state with:
+   - pool `slot0()`
+   - pool `liquidity()`
+   - pool `token0()`
+   - pool `token1()`
+   - pool `fee()`
+   - pool `tickSpacing()`
+   - ERC-20 `balanceOf(pool)` for both tokens
+   - ERC-20 `balanceOf(sender)` for both tokens
+   - `eth_getBalance(sender)`
+   - quoter `quoteExactInputSingle(...)`
+8. Call Anvil `anvil_impersonateAccount(sender)`.
+9. Call Anvil `anvil_setBalance(sender, ...)` so the impersonated sender can pay gas.
+10. Submit the same transaction call to Anvil with:
+    - `from = sender`
+    - `to = router`
+    - `data = original calldata`
+    - `value = original value`
+11. Wait for the replay receipt.
+12. Snapshot the same state again after execution.
+13. Print the diff-oriented report shown above.
+
+This is why the output is useful even without a backrun stage: it tells you exactly how much the victim moved the pool and what the same route would quote immediately after the trade.
+
+### What This Says About Arb Potential
+
+This example does show state movement, but only a very small one.
+
+- The same-route quote worsened by `7,612` raw `USDT` units.
+- Because `USDT` has 6 decimals, that is about `0.007612 USDT`.
+- The victim moved the pool by only one tick.
+- The gross price impact is therefore tiny.
+
+That does not automatically mean there is no arbitrage, because arbitrage depends on the gap between this pool and another venue after the trade. But it does mean:
+
+- the victim itself is small
+- the induced distortion is small
+- any cross-venue arb would need to overcome gas and execution risk
+
+For a realistic searcher decision, this example is probably weak unless:
+
+- another venue was already extremely tightly mispriced against this pool and
+- even a `0.007612 USDT` shift was enough to open a profitable backrun after gas
+
+That is unlikely. So the most reasonable reading is:
+
+- useful as a simulator sanity-check
+- not a strong arb candidate by itself
+
+To answer the arb question properly, the next stage would need to:
+
+- snapshot one or more comparison venues before and after the victim
+- simulate the candidate searcher swap after the victim
+- compute token deltas and gas-adjusted net profit
+
 The key purpose of this step is to have a baseline.
 
 ### 5. Make The Victim Executable On The Fork
