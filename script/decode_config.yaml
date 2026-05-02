@@ -24,16 +24,27 @@ router_labels:
 selector_labels:
   "0x04e45aaf": "exactInputSingle"
   "0x09b81346": "exactInput"
+  "0x0d58b1db": "transferFrom(batch)"
+  "0x12aa3caf": "1inch swap"
   "0x38ed1739": "swapExactTokensForTokens"
+  "0x36c78516": "transferFrom"
+  "0x3ff9dcb1": "invalidateUnorderedNonces"
   "0x18cbafe5": "swapExactTokensForETH"
+  "0x2b67b570": "permit"
   "0x7ff36ab5": "swapExactETHForTokens"
+  "0x5ae401dc": "multicall"
+  "0x5f575529": "swap"
   "0xfb3bdb41": "swapETHForExactTokens"
   "0x4a25d94a": "swapTokensForExactETH"
   "0x8803dbee": "swapTokensForExactTokens"
+  "0x87517c45": "approve"
+  "0xac9650d8": "multicall"
+  "0xb858183f": "exactInput"
   "0xb68fb020": "1inch aggregate-like"
   "0x07ed2379": "1inch aggregate-like"
   "0x414bf389": "exactInputSingle"
   "0xc04b8d59": "exactInput"
+  "0xcc53287f": "lockdown"
   "0xf28c0498": "exactOutput"
   "0xdb3e2198": "exactOutputSingle"
 
@@ -81,6 +92,10 @@ selector_decoders:
   "0xc04b8d59":
     method_name: "exactInput"
     arg_types: ["(bytes,address,uint256,uint256,uint256)"]
+    arg_names: ["params"]
+  "0xb858183f":
+    method_name: "exactInput"
+    arg_types: ["(bytes,address,uint256,uint256)"]
     arg_names: ["params"]
   "0xf28c0498":
     method_name: "exactOutput"
