@@ -46,6 +46,17 @@ Approximate share of the `233` filtered events:
 - `SushiSwap`: `2.1%`
 - `1inch v5`: `1.3%`
 
+Selector counts observed within each router bucket:
+
+- `SushiSwap`: `0x38ed1739` x `5`
+- `Uniswap V3`: `0x04e45aaf` x `39`, `0x5ae401dc` x `12`, `0xb858183f` x `10`, `0x09b81346` x `3`
+- `Uniswap V3 (old)`: `0x414bf389` x `12`, `0x8740dc04` x `8`, `0xdb3e2198` x `7`, `0xce9423d9` x `5`, `0xc04b8d59` x `2`, `0xac9650d8` x `1`
+- `Uniswap Permit2`: `0x3ff9dcb1` x `12`, `0x2b67b570` x `11`, `0x0d58b1db` x `9`, `0x36c78516` x `4`, `0xcc53287f` x `4`, `0x87517c45` x `2`
+- `KyberSwap MetaAggregation`: `0xe21fd0e9` x `40`
+- `1inch v6`: `0x07ed2379` x `19`, `0xb68fb020` x `15`, `0xe2c95c82` x `1`, `0x83800a8e` x `1`, `0x9fda64bd` x `1`
+- `1inch v5`: `0x12aa3caf` x `3`
+- `MetaMask Swap Router`: `0x5f575529` x `7`
+
 ### Queue And Lookup Observations
 
 From the `queue_size=... avg_lookups_per_sec=...` lines in the same log:
