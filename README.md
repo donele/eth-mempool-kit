@@ -119,6 +119,14 @@ Or:
 python script/estimate_arb.py script/filtered_20260501_1528.log --rpc-url https://eth-mainnet.g.alchemy.com/v2/...
 ```
 
+Important limitation:
+
+- `getReserves()` returns the current reserve state seen by the RPC node at query time
+- it does not return the reserve state at the moment the pending transaction first appeared in the mempool
+- it also does not return the exact reserve state immediately before the transaction executes in a future block
+
+So the estimator is using current-state reserves as an approximation, not the true execution-time state.
+
 ### How It Works
 
 For each supported transaction:
@@ -137,6 +145,8 @@ The reserve math uses the standard constant-product V2 formula with a `0.3%` fee
 
 - fee numerator: `997`
 - fee denominator: `1000`
+
+The most important caveat here is that the reserve inputs come from the current chain state at query time. They are not historical reserves taken from the exact moment the transaction was first observed, and they are not the fully mempool-adjusted reserves that would exist after all earlier pending transactions have executed.
 
 ### What The Output Means
 
@@ -266,7 +276,6 @@ For this transaction, `estimate_arb.py` performs the following steps.
 2. Decode the calldata using `decode_mempool._decode_input_structured(...)`.
 3. Recognize the router as SushiSwap.
 4. Infer the comparison venue as Uniswap V2.
-   - this does not mean SushiSwap is part of Uniswap
    - it means the estimator compares two separate V2-style venues for the same token pair
    - because the victim transaction is on SushiSwap, the current implementation chooses Uniswap V2 as the comparison venue
    - if the victim transaction were on Uniswap V2, the estimator would compare against SushiSwap instead
@@ -301,6 +310,8 @@ Then it makes these on-chain calls through the configured HTTP RPC:
 12. Uniswap V2 reverse pair `token0()`
 
 Because this example has a 2-token path, the reverse-direction lookups usually resolve to the same pair contract as the forward lookup. The script still queries through the same helper for the reverse path so it can model the return leg consistently.
+
+These calls all read current RPC state. They do not reconstruct the exact Sushi or Uniswap reserve state that existed when transaction `058e07...` first entered the mempool.
 
 ### Worked Example: The Math
 
@@ -347,6 +358,13 @@ The post-victim case is the most useful one in this script, because it is the on
 - If this Sushi swap lands first, does it open a backrun on Uniswap V2 -> Sushi?
 
 In other words, the estimator is checking whether a trade on one venue moves the pair far enough away from the price on the other venue to create a simple two-pool arbitrage.
+
+That still uses a simplified state model:
+
+- current reserves on both venues
+- plus a synthetic reserve update for the victim trade on the victim venue
+
+It does not include the effect of unrelated pending transactions that may also move either pool before this trade lands.
 
 ### What The Worked Example Still Does Not Prove
 
