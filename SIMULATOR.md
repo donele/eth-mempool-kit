@@ -812,6 +812,76 @@ token_delta_out=...
 rough_net_profit=...
 ```
 
+## Batch Replay Table
+
+The per-transaction replay logs in `script/simulate_*.log` are still not true arbitrage simulations. They only measure how much the victim worsens the quote for the same route on the same pool.
+
+The table below uses a simple heuristic:
+
+- `quote impact % = abs(quote_delta) / quote_before`
+- `Very low`
+  - the victim barely moved the local pool, so standalone arb potential is poor
+- `Weak`
+  - a visible local move exists, but it is still unlikely to survive gas, slippage on the backrun leg, and cross-venue frictions
+- `Anomalous`
+  - the local move is very large and should be manually reviewed rather than trusted as easy profit
+
+This is intentionally conservative. It is a triage table, not a profit report.
+
+| Log | Tx | Token In | Token Out | Quote Impact % | Gas Used | Estimated Potential | Comment |
+| --- | --- | --- | --- | ---: | ---: | --- | --- |
+| `simulate_0044a5.log` | `0x0044a5` | `USDT` | `USDKG` | `0.0014%` | `119502` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_0184a2.log` | `0x0184a2` | `GGBR` | `USDT` | `0.0024%` | `140112` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_03096e.log` | `0x03096e` | `USDKG` | `USDT` | `0.0004%` | `143723` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_04187e.log` | `0x04187e` | `USDKG` | `USDT` | `0.0003%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_05f251.log` | `0x05f251` | `USDKG` | `USDT` | `0.0012%` | `180440` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_13e8da.log` | `0x13e8da` | `USDT` | `USDKG` | `0.0012%` | `119502` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_1c093c.log` | `0x1c093c` | `USDKG` | `USDT` | `0.0004%` | `143723` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_1c4323.log` | `0x1c4323` | `USDT` | `FDM` | `99.850%` | `132035` | Anomalous | Large local move; likely illiquid/pathological, manual review |
+| `simulate_1e9364.log` | `0x1e9364` | `USDKG` | `USDT` | `0.0003%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_230c1b.log` | `0x230c1b` | `GGBR` | `USDT` | `0.0036%` | `140112` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_233499.log` | `0x233499` | `USDT` | `$MBG` | `0.0161%` | `132782` | Weak | Visible local move, but still unlikely to survive gas and cross-venue frictions |
+| `simulate_35f07f.log` | `0x35f07f` | `USDKG` | `USDT` | `0.0007%` | `180440` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_36968d.log` | `0x36968d` | `USDT` | `USDKG` | `0.0014%` | `157889` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_374ec0.log` | `0x374ec0` | `USDKG` | `USDT` | `0.0014%` | `180440` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_486e88.log` | `0x486e88` | `USDKG` | `USDT` | `0.0006%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_4be01d.log` | `0x4be01d` | `USDKG` | `USDT` | `0.0002%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_4ef393.log` | `0x4ef393` | `USDT` | `USDKG` | `0.0012%` | `157901` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_52536a.log` | `0x52536a` | `USDKG` | `USDT` | `0.0003%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_5ce509.log` | `0x5ce509` | `USDT` | `UBX` | `3.522%` | `123593` | Anomalous | Large local move; likely illiquid/pathological, manual review |
+| `simulate_5ff5e8.log` | `0x5ff5e8` | `GGBR` | `USDT` | `0.0034%` | `139112` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_5ffd49.log` | `0x5ffd49` | `USDKG` | `USDT` | `0.0003%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_65ab47.log` | `0x65ab47` | `USDKG` | `USDT` | `0.0017%` | `180440` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_698e3a.log` | `0x698e3a` | `USDKG` | `USDT` | `0.0004%` | `143723` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_6c8cf7.log` | `0x6c8cf7` | `USDT` | `USDKG` | `0.0012%` | `119502` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_7d9a03.log` | `0x7d9a03` | `USDT` | `USDKG` | `0.0001%` | `124302` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_817f6e.log` | `0x817f6e` | `$MBG` | `USDT` | `0.0179%` | `133555` | Weak | Visible local move, but still unlikely to survive gas and cross-venue frictions |
+| `simulate_81cc1d.log` | `0x81cc1d` | `GGBR` | `USDT` | `0.0027%` | `139112` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_8a5ec8.log` | `0x8a5ec8` | `USDC` | `PAXG` | `0.0000%` | `157359` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_8f2126.log` | `0x8f2126` | `USDT` | `USDKG` | `0.0004%` | `119325` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_91e0d1.log` | `0x91e0d1` | `USDT` | `USDKG` | `0.0013%` | `157901` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_97fb99.log` | `0x97fb99` | `USDT` | `USDKG` | `0.0012%` | `157901` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_98a522.log` | `0x98a522` | `USDKG` | `USDT` | `0.0001%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_9bb413.log` | `0x9bb413` | `USDT` | `GWEI` | `0.9820%` | `124830` | Weak | Visible local move, but still unlikely to survive gas and cross-venue frictions |
+| `simulate_9c4fa8.log` | `0x9c4fa8` | `USDKG` | `USDT` | `0.0012%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_9e3413.log` | `0x9e3413` | `USDT` | `USDKG` | `0.0014%` | `119325` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_b0deff.log` | `0xb0deff` | `USDT` | `USDKG` | `0.0015%` | `157901` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_b75b97.log` | `0xb75b97` | `USDT` | `$MBG` | `0.0178%` | `132782` | Weak | Visible local move, but still unlikely to survive gas and cross-venue frictions |
+| `simulate_c02934.log` | `0xc02934` | `JOCX` | `USDT` | `0.9109%` | `130140` | Weak | Visible local move, but still unlikely to survive gas and cross-venue frictions |
+| `simulate_c09cb5.log` | `0xc09cb5` | `USDKG` | `USDT` | `0.0011%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_c6070c.log` | `0xc6070c` | `USDT` | `USDKG` | `0.0004%` | `119325` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_cae9a5.log` | `0xcae9a5` | `USDKG` | `USDT` | `0.0004%` | `143723` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_cf7eaa.log` | `0xcf7eaa` | `USDKG` | `USDT` | `0.0007%` | `180440` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_d60a2e.log` | `0xd60a2e` | `USDKG` | `USDT` | `0.0017%` | `180440` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_da6246.log` | `0xda6246` | `USDT` | `$MBG` | `0.0192%` | `132784` | Weak | Visible local move, but still unlikely to survive gas and cross-venue frictions |
+| `simulate_db1fc1.log` | `0xdb1fc1` | `GGBR` | `USDT` | `0.0033%` | `140112` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_db8ceb.log` | `0xdb8ceb` | `USDKG` | `USDT` | `0.0014%` | `143723` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_e2bf39.log` | `0xe2bf39` | `USDT` | `USDKG` | `0.0003%` | `157901` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_efe296.log` | `0xefe296` | `USDKG` | `USDT` | `0.0010%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_f5e813.log` | `0xf5e813` | `USDT` | `USDKG` | `0.0007%` | `119325` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_f605fa.log` | `0xf605fa` | `USDKG` | `USDT` | `0.0011%` | `143713` | Very low | Tiny local move; poor standalone arb candidate |
+| `simulate_f95137.log` | `0xf95137` | `USDT` | `USDKG` | `0.0014%` | `119502` | Very low | Tiny local move; poor standalone arb candidate |
+
 ## Final Guidance
 
 If your goal is accurate V3 MEV simulation, prefer:

@@ -79,7 +79,7 @@ selector_decoders:
     arg_names: ["params"]
   "0x414bf389":
     method_name: "exactInputSingle"
-    arg_types: ["(address,address,uint24,address,uint256,uint256,uint160)"]
+    arg_types: ["(address,address,uint24,address,uint256,uint256,uint256,uint160)"]
     arg_names: ["params"]
   "0xdb3e2198":
     method_name: "exactOutputSingle"
