@@ -834,11 +834,11 @@ The heuristic is still conservative:
 - `Blocked`
   - the current script run did not produce usable quote data
 
-| Batch Log | Scope | Transactions | Successful Replays | Errors | Quote Coverage | Observed Quote Impact | Estimated Potential | Comment |
-| --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- |
-| `script/20260501_1528/simulate_v3_exact_input_single.log` | direct `exactInputSingle` | `51` | `51` | `0` | `51 / 51` | median `0.0012%`, max `99.85%` | Very low | Most replays show tiny local quote deterioration. A few extreme outliers look illiquid or pathological and need manual review, not automatic trading. |
-| `script/20260501_1528/simulate_v3_exact_input.log` | direct `exactInput` | `12` | `7` | `5` | `0 / 7` | unavailable | Blocked | Replays partly worked, but quoter coverage was unavailable and several runs failed with upstream 429 / fork-reset issues, so this batch does not yet support profit triage. |
-| `script/20260501_1528/simulate_v3_multicall.log` | V3 multicall wrappers | `13` | `0` | `13` | `0 / 0` | unavailable | Blocked | The current multicall extraction path failed on every entry with `Unexpected multicall tx input encoding`, so no profitability signal is available yet. |
+| Scope | Transactions | Successful Replays | Errors | Quote Coverage | Observed Quote Impact | Estimated Potential | Comment |
+| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
+| direct `exactInputSingle` | `51` | `51` | `0` | `51 / 51` | median `0.0012%`, max `99.85%` | Very low | Source: `script/20260501_1528/simulate_v3_exact_input_single.log`. Most replays show tiny local quote deterioration. A few extreme outliers look illiquid or pathological and need manual review, not automatic trading. |
+| direct `exactInput` | `12` | `7` | `5` | `0 / 7` | unavailable | Blocked | Source: `script/20260501_1528/simulate_v3_exact_input.log`. Replays partly worked, but quoter coverage was unavailable and several runs failed with upstream 429 / fork-reset issues, so this batch does not yet support profit triage. |
+| V3 multicall wrappers | `13` | `0` | `13` | `0 / 0` | unavailable | Blocked | Source: `script/20260501_1528/simulate_v3_multicall.log`. The current multicall extraction path failed on every entry with `Unexpected multicall tx input encoding`, so no profitability signal is available yet. |
 
 ## Final Guidance
 
