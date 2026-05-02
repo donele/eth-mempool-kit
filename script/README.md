@@ -462,6 +462,128 @@ This transaction is supported by the current V3 estimator path because:
 - the method is `exactInputSingle`
 - the path is a single V3 hop with an explicit fee tier
 
+### What `exactInputSingle` Means
+
+`exactInputSingle` is the simplest direct Uniswap V3 swap entrypoint for a one-pool trade.
+
+Conceptually it means:
+
+- the trader specifies the exact input amount they want to spend
+- the router swaps through exactly one V3 pool
+- the output amount is whatever the pool returns, subject to the user's minimum-output constraint
+
+The decoded parameter tuple is:
+
+- `tokenIn`
+- `tokenOut`
+- `fee`
+- `recipient`
+- `amountIn`
+- `amountOutMinimum`
+- `sqrtPriceLimitX96`
+
+In the worked example:
+
+- `tokenIn` is `0xe820c06321e60d36257c666643fa5436643445e3`
+- `tokenOut` is `USDT`
+- `fee` is `100` which means the `0.01%` fee tier
+- `amountIn` is the exact amount the trader is spending
+- `amountOutMinimum` is the slippage guard
+- `sqrtPriceLimitX96 = 0` means there is no extra price-limit bound beyond the normal pool execution constraints
+
+For MEV, `exactInputSingle` is useful because it is much more structured than aggregator calldata:
+
+- one pool
+- known token direction
+- explicit fee tier
+- explicit exact input size
+
+That makes it a good first V3 target for quoting and simulation.
+
+### Why `exactInputSingle` Matters For MEV
+
+From an MEV point of view, a pending `exactInputSingle` swap can matter in several ways:
+
+- it may move the V3 pool price enough to open a backrun against another venue
+- it may worsen or improve pricing on a related V2 pair
+- it may itself be an opportunity to backrun with a reverse trade if the post-trade price becomes misaligned
+- it can reveal short-term directional flow in a very specific fee-tier pool
+
+Compared with a V2 swap, the hard part is that V3 price impact depends on:
+
+- current sqrt price
+- current active liquidity
+- tick crossings
+- liquidity changes across tick ranges
+
+That is why V3 MEV analysis usually moves quickly from "decode" to "quote/simulate."
+
+### How To Simulate `exactInputSingle`
+
+At a minimum, simulation means reproducing what the V3 pool would output for the pending trade size.
+
+The current script does only the first step:
+
+1. decode the pending calldata
+2. confirm the pool exists through `UniswapV3Factory.getPool(tokenIn, tokenOut, fee)`
+3. query the current quote through `Quoter.quoteExactInputSingle(tokenIn, tokenOut, fee, amountIn, sqrtPriceLimitX96)`
+
+That gives a current-state estimate for:
+
+- "if I executed this one-pool exact-input swap right now, what output would I get?"
+
+For real MEV work, that is not enough. A fuller simulation workflow is:
+
+1. start from the relevant base state
+   - latest node state, or ideally a local fork close to the target block
+2. simulate the victim `exactInputSingle`
+   - this updates the V3 pool state
+   - the key effect is movement in sqrt price and possibly crossing ticks
+3. simulate your candidate backrun or cross-venue trade on the post-victim state
+4. measure:
+   - token profit
+   - gas used
+   - bribe / priority fee budget
+   - failure cases if the victim does not land as expected
+
+If you want the exact state immediately before the victim executes, you also need:
+
+- ordering assumptions for earlier pending transactions
+- or replay/simulation against a local node or fork
+
+### What A V3 MEV Trading Workflow Looks Like
+
+A practical workflow for `exactInputSingle` style opportunities usually looks like this:
+
+1. Observe the pending transaction from the mempool feed.
+2. Decode the router calldata and identify:
+   - token in
+   - token out
+   - fee tier
+   - exact input size
+   - minimum output
+3. Check whether the affected pool is one you care about.
+4. Get a fast current quote.
+5. Compare the implied price against:
+   - other V3 fee tiers
+   - V2 pools
+   - Sushi
+   - aggregator routes you track
+6. If the trade looks interesting, run a real simulation:
+   - victim first
+   - then your candidate backrun/arbitrage
+7. Compute net expected profit after:
+   - gas
+   - builder payment / tip
+   - slippage and failure risk
+8. Build and submit the bundle if the opportunity survives.
+
+The reason `exactInputSingle` is a good first V3 target is that steps 2 through 5 are much cleaner than for:
+
+- multi-hop V3 paths
+- aggregator routes
+- router multicalls that bundle approvals, unwraps, and swaps together
+
 ### Worked Example: Call By Call
 
 For this transaction, `estimate_arb.py` does the following:
