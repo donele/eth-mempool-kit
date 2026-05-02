@@ -80,7 +80,7 @@ For this sample, the filtered stream is not dominated by classic Uniswap V2 styl
 
 That matters because `estimate_arb.py` currently only handles a narrow V2-style subset. In this particular sample log, only a small fraction of the captured transactions are directly usable by that estimator without extending the decoder and pricing logic.
 
-## `estimate_arb.py` For V2 Swaps
+## V2 Swap Example
 
 `estimate_arb.py` started as a rough profitability estimator for a narrow V2-style subset of the filtered mempool stream.
 
@@ -396,3 +396,92 @@ It does not prove real profitability because it still ignores:
 - the optimal trade size, which may be very different from the victim's `amountIn`
 - inclusion risk
 - state changes between observation and execution
+
+## V3 Swap Example
+
+`estimate_arb.py` now also has an initial Uniswap V3 path, but it is materially narrower than the V2 path.
+
+For V3, the current script supports:
+
+- `exactInputSingle`
+- `exactInput`
+
+And the estimate is only a current quote:
+
+- quote the current Uniswap V3 output with the quoter
+- optionally compare that current one-hop V3 quote to V2/Sushi if the same 2-token path exists there
+- no V3 post-victim reserve transition
+- no V3 cycle-profit simulation
+
+So the V3 path is closer to a current-routing comparison than a full arb model.
+
+### Worked Example: Transaction `35f07f...`
+
+This is a real V3 transaction from `filtered_20260501_1528.log`:
+
+```text
+2026-05-01 19:32:38.639162 TRANSACTION HASH: 35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f
+queue_size=2 avg_lookups_per_sec=15.80
+router=Uniswap V3
+AttributeDict({'type': 2, 'chainId': 1, 'nonce': 145, 'gas': 200041, 'maxFeePerGas': 572754988, 'maxPriorityFeePerGas': 100, 'to': '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45', 'value': 0, 'accessList': [], 'input': HexBytes('0x04e45aaf000000000000000000000000e820c06321e60d36257c666643fa5436643445e3000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec7000000000000000000000000000000000000000000000000000000000000006400000000000000000000000074d9c49327f92b45f3136ae5304079e0204c6f690000000000000000000000000000000000000000000000000000000042bde168000000000000000000000000000000000000000000000000000000004268737a0000000000000000000000000000000000000000000000000000000000000000'), 'r': HexBytes('0xe84f778fd15a101021b534fb9b1de86198cf3fd2b4491ddfdaf3bf894b362f27'), 's': HexBytes('0x20819c56a86698ce9f5f77e64f8c5842319b9334625f0f65c7b375b6c3f5b13e'), 'yParity': 0, 'v': 0, 'hash': HexBytes('0x35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f'), 'blockHash': None, 'blockNumber': None, 'transactionIndex': None, 'from': '0x74d9c49327F92b45F3136Ae5304079e0204c6F69', 'gasPrice': 572754988})
+```
+
+Decoded calldata:
+
+```text
+decoded_input: selector=0x04e45aaf (exactInputSingle), words=7
+decoded_input_detail: selector=0x04e45aaf (exactInputSingle), bytes=224, words=7
+decoded_method: exactInputSingle
+  params=['0xe820c06321e60d36257c666643fa5436643445e3', '0xdac17f958d2ee523a2206206994597c13d831ec7', 100, '0x74d9c49327f92b45f3136ae5304079e0204c6f69', 1119740264, 1114141562, 0]
+```
+
+What that means:
+
+- router: `Uniswap V3`
+- method: `exactInputSingle`
+- token in: `0xe820c06321e60d36257c666643fa5436643445e3`
+- token out: `0xdac17f958d2ee523a2206206994597c13d831ec7` = `Tether USD (USDT)`
+- pool fee tier: `100` = `0.01%`
+- exact input size: `1,119,740,264`
+- minimum acceptable output: `1,114,141,562`
+
+This transaction is supported by the current V3 estimator path because:
+
+- the router is the newer Uniswap V3 router (`SwapRouter02`)
+- the method is `exactInputSingle`
+- the path is a single V3 hop with an explicit fee tier
+
+### Worked Example: Call By Call
+
+For this transaction, `estimate_arb.py` does the following:
+
+1. Parse the log line and extract `to`, `value`, and `input`.
+2. Decode the calldata using `decode_mempool._decode_input_structured(...)`.
+3. Recognize the router as `Uniswap V3`.
+4. Extract the single-hop swap parameters:
+   - `tokenIn`
+   - `tokenOut`
+   - `fee`
+   - `amountIn`
+   - `sqrtPriceLimitX96`
+5. Query the Uniswap V3 factory `getPool(tokenIn, tokenOut, fee)` to verify the pool exists.
+6. Query the Uniswap V3 quoter `quoteExactInputSingle(...)` for the current output amount.
+7. If the same 2-token path exists on Uniswap V2 or SushiSwap, query those V2 pairs and print current-route comparisons too.
+
+### What The V3 Path Tells You
+
+For this V3 example, the script is answering:
+
+- what the current Uniswap V3 quote is for this exact-input swap
+- whether a simple current-state V2 or Sushi route looks better or worse for the same token pair, if such a pair exists
+
+It is not answering:
+
+- what the V3 pool state will be after the victim trade
+- whether a backrun cycle is profitable
+- what the best V3 arb path or size would be
+
+So the right interpretation of the current V3 path is:
+
+- useful for current quote comparison
+- not yet a full V3 MEV-arb estimator
