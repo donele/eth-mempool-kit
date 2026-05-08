@@ -7,7 +7,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from web3 import Web3
 
-from decode_mempool import _decode_input_structured
+from .decode_mempool import _decode_input_structured
 
 
 load_dotenv(override=True)

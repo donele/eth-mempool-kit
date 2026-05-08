@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 from eth_abi import decode
 from web3 import Web3
 
-from decode_mempool import _decode_input_structured
-from simulate_v3_exact_input import (
+from .decode_mempool import _decode_input_structured
+from .simulate_v3_exact_input import (
     DEFAULT_DECODED_LOG,
     RouteSnapshot,
     _format_optional_amount,
@@ -19,7 +19,7 @@ from simulate_v3_exact_input import (
     _quote_exact_input,
     _snapshot_route_state,
 )
-from simulate_v3_exact_input_single import (
+from .simulate_v3_exact_input_single import (
     _derive_rpc_url,
     _format_amount,
     _format_delta,
@@ -31,7 +31,7 @@ from simulate_v3_exact_input_single import (
 )
 
 
-load_dotenv(Path(__file__).with_name(".env"), override=True)
+load_dotenv(override=True)
 
 TX_HASH_RE = re.compile(r"TRANSACTION HASH:\s*([0-9a-fA-Fx]+)")
 ROUTER_RE = re.compile(r"^router=(.+)$")

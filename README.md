@@ -19,6 +19,22 @@ Right now the repo is Python-heavy and script-oriented. That is intentional for 
 
 This README describes the overall plan and the intended future structure.
 
+## Install And Run As A Package
+
+You can install `eth-mempool-kit` and run tools from any directory.
+
+1. Install (editable during development):
+```bash
+python -m pip install -e . --no-build-isolation
+```
+
+2. Run installed console commands:
+```bash
+decode-mempool
+decode-transactions /path/to/log.txt
+read-mempool-queue -f
+```
+
 ## Current Repository Layout
 
 Today the repo is small:
@@ -56,7 +72,7 @@ Main scripts in [script/](/home/jdlee/repos/eth-mempool-kit/script):
   - rough V2 estimator and initial V3 quote-based estimator
 - [decode_config.yaml](/home/jdlee/repos/eth-mempool-kit/script/decode_config.yaml)
   - shared router labels, selector labels, and decoder metadata
-- [script/README.md](/home/jdlee/repos/eth-mempool-kit/script/README.md)
+- [MEMPOOL_COVERAGE_NOTES.md](/home/jdlee/repos/eth-mempool-kit/MEMPOOL_COVERAGE_NOTES.md)
   - sample-log stats and worked V2/V3 examples
 
 ## Project Goal
@@ -95,7 +111,7 @@ Python is not the ideal end-state for a high-performance MEV engine, but it is u
 
 This matters because the repo should not prematurely optimize the wrong path.
 
-For example, the sample analyzed in [script/README.md](/home/jdlee/repos/eth-mempool-kit/script/README.md:1) shows that the filtered stream is dominated by:
+For example, the sample analyzed in [MEMPOOL_COVERAGE_NOTES.md](/home/jdlee/repos/eth-mempool-kit/MEMPOOL_COVERAGE_NOTES.md:1) shows that the filtered stream is dominated by:
 
 - Uniswap V3
 - Uniswap Permit2
@@ -383,7 +399,7 @@ It is better understood as:
 
 ## Related Docs
 
-- [script/README.md](/home/jdlee/repos/eth-mempool-kit/script/README.md:1)
+- [MEMPOOL_COVERAGE_NOTES.md](/home/jdlee/repos/eth-mempool-kit/MEMPOOL_COVERAGE_NOTES.md:1)
   - script-level examples and sample-log analysis
 - [SIMULATOR.md](/home/jdlee/repos/eth-mempool-kit/SIMULATOR.md:1)
   - fork-based V3 simulation design

@@ -2,7 +2,7 @@ import argparse
 import re
 from pathlib import Path
 
-from decode_mempool import _decode_input, _decode_input_verbose
+from .decode_mempool import _decode_input, _decode_input_verbose
 
 
 TX_HASH_PREFIX = "TRANSACTION HASH:"

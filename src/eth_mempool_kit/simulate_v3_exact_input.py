@@ -6,8 +6,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from web3 import Web3
 
-from decode_mempool import _decode_input_structured
-from simulate_v3_exact_input_single import (
+from .decode_mempool import _decode_input_structured
+from .simulate_v3_exact_input_single import (
     DEFAULT_DECODED_LOG,
     ERC20_ABI,
     V3_FACTORY_ABI,
@@ -27,7 +27,7 @@ from simulate_v3_exact_input_single import (
 )
 
 
-load_dotenv(Path(__file__).with_name(".env"), override=True)
+load_dotenv(override=True)
 
 
 @dataclass

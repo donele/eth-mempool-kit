@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eth-mempool-kit"
+version = "0.1.0"
+description = "Utilities for reading and decoding Ethereum mempool data"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "python-dotenv>=1.0.0",
+  "web3>=7.0.0",
+  "eth-abi>=5.0.0",
+  "PyYAML>=6.0.0",
+]
+
+[project.scripts]
+decode-mempool = "eth_mempool_kit.decode_mempool:main"
+decode-transactions = "eth_mempool_kit.decode_transactions:main"
+read-mempool = "eth_mempool_kit.read_mempool:main"
+read-mempool-queue = "eth_mempool_kit.read_mempool_queue:main"
+estimate-arb = "eth_mempool_kit.estimate_arb:main"
+simulate-v3-exact-input = "eth_mempool_kit.simulate_v3_exact_input:main"
+simulate-v3-exact-input-single = "eth_mempool_kit.simulate_v3_exact_input_single:main"
+simulate-v3-multicall = "eth_mempool_kit.simulate_v3_multicall:main"
+filter-from-erigon = "eth_mempool_kit.filter_from_erigon:run"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+eth_mempool_kit = ["decode_config.yaml"]

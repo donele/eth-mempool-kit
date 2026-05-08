@@ -7,10 +7,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from web3 import Web3
 
-from decode_mempool import _decode_input_structured
+from .decode_mempool import _decode_input_structured
 
 
-load_dotenv(Path(__file__).with_name(".env"), override=True)
+load_dotenv(override=True)
 
 DEFAULT_DECODED_LOG = Path(__file__).with_name("decoded_20260501_1528.log")
 TX_HASH_RE = re.compile(r"TRANSACTION HASH:\s*([0-9a-fA-Fx]+)")
