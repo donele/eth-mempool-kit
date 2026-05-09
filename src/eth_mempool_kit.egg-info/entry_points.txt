@@ -1,6 +1,5 @@
 [console_scripts]
 batch-replay-table = eth_mempool_kit.batch_replay_table:main
-decode-mempool = eth_mempool_kit.decode_mempool:main
 decode-transactions = eth_mempool_kit.decode_transactions:main
 estimate-arb = eth_mempool_kit.estimate_arb:main
 filter-from-erigon = eth_mempool_kit.filter_from_erigon:run

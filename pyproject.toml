@@ -16,7 +16,6 @@ dependencies = [
 ]
 
 [project.scripts]
-decode-mempool = "eth_mempool_kit.decode_mempool:main"
 decode-transactions = "eth_mempool_kit.decode_transactions:main"
 read-mempool = "eth_mempool_kit.read_mempool:main"
 read-mempool-queue = "eth_mempool_kit.read_mempool_queue:main"

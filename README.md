@@ -30,7 +30,6 @@ python -m pip install -e . --no-build-isolation
 
 2. Run installed console commands:
 ```bash
-decode-mempool
 decode-transactions /path/to/log.txt
 read-mempool-queue -f
 ```
@@ -65,7 +64,7 @@ Main scripts in [script/](/home/jdlee/repos/eth-mempool-kit/script):
 - [read_mempool_queue.py](/home/jdlee/repos/eth-mempool-kit/script/read_mempool_queue.py)
   - queue-based pending-tx reader with worker consumers
 - [decode_mempool.py](/home/jdlee/repos/eth-mempool-kit/script/decode_mempool.py)
-  - decode helpers and router/selector config loading
+  - decode library helpers and router/selector config loading (imported by other tools)
 - [decode_transactions.py](/home/jdlee/repos/eth-mempool-kit/script/decode_transactions.py)
   - offline decoder for captured transaction logs
 - [estimate_arb.py](/home/jdlee/repos/eth-mempool-kit/script/estimate_arb.py)
@@ -343,6 +342,7 @@ The project is ultimately bounded by a very small reaction window.
 - Queueing/backpressure
 - Python vs C++
 - GC pauses, logging overhead
+- Observed offline batch decode throughput: `2546` tx in about `2s` via `decode_transactions.py` (about `0.8 ms/tx`, approximately `1 ms/tx`) on local data; this is decode-only and not end-to-end reaction latency
 - Worst case rough range: `10 - 500 ms`
 
 ### Simulation
@@ -352,6 +352,7 @@ The project is ultimately bounded by a very small reaction window.
 - route complexity
 - parallel candidate evaluation
 - local simulation is much more attractive than remote RPC once the strategy is exact-sim driven
+- Observed local test (Erigon + Anvil on the same machine): `445` transactions simulated in `5m24s`, averaging about `0.73 s/tx` (about `728 ms/tx`); this was only a small random sample of `445` transactions
 
 ### Bundle Construction
 

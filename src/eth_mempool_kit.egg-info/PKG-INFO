@@ -41,7 +41,6 @@ python -m pip install -e . --no-build-isolation
 
 2. Run installed console commands:
 ```bash
-decode-mempool
 decode-transactions /path/to/log.txt
 read-mempool-queue -f
 ```

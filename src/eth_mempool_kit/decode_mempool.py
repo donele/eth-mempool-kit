@@ -403,14 +403,3 @@ async def stream_pending_transactions() -> None:
                     await w3.eth.unsubscribe(subscription_id)
                 except Exception:
                     pass
-
-
-def main() -> None:
-    try:
-        asyncio.run(stream_pending_transactions())
-    except KeyboardInterrupt:
-        print("\nStopped.")
-
-
-if __name__ == "__main__":
-    main()
