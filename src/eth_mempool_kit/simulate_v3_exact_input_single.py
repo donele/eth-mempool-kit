@@ -1,16 +1,15 @@
-import argparse
 import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from web3 import Web3
 
 from .decode_mempool import _decode_input_structured
 
 
-load_dotenv(override=True)
+load_dotenv(find_dotenv(usecwd=True), override=True)
 
 DEFAULT_DECODED_LOG = Path(__file__).with_name("decoded_20260501_1528.log")
 TX_HASH_RE = re.compile(r"TRANSACTION HASH:\s*([0-9a-fA-Fx]+)")
@@ -159,6 +158,10 @@ class PoolSnapshot:
 
 
 def _derive_rpc_url() -> str | None:
+    erigon_rpc_url = os.getenv("ERIGON_RPC_URL")
+    if erigon_rpc_url:
+        return erigon_rpc_url
+
     rpc_url = os.getenv("RPC_URL")
     if rpc_url:
         return rpc_url
@@ -588,49 +591,3 @@ def simulate_exact_input_single(
         print(f"sender_token_out_balance_after={_format_amount(post.sender_token_out_balance)}")
         print(f"sender_eth_balance_before={_format_amount(pre.sender_eth_balance)}")
         print(f"sender_eth_balance_after={_format_amount(post.sender_eth_balance)}")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "decoded_log",
-        nargs="?",
-        default=str(DEFAULT_DECODED_LOG),
-        help="decoded transaction log; defaults to script/decoded_20260501_1528.log",
-    )
-    parser.add_argument(
-        "--tx-hash",
-        help="target transaction hash; when omitted, simulate every exactInputSingle entry in the decoded log",
-    )
-    parser.add_argument(
-        "--anvil-url",
-        default=os.getenv("ANVIL_URL", "http://127.0.0.1:8545"),
-        help="Anvil RPC URL",
-    )
-    parser.add_argument(
-        "--rpc-url",
-        default=_derive_rpc_url(),
-        help="upstream RPC URL used to fetch the original tx and reset Anvil",
-    )
-    parser.add_argument(
-        "--gas-limit",
-        type=int,
-        default=2_000_000,
-        help="gas limit used for the replay transaction",
-    )
-    args = parser.parse_args()
-
-    if not args.rpc_url:
-        raise SystemExit("Missing --rpc-url and could not derive RPC_URL from environment")
-
-    simulate_exact_input_single(
-        decoded_log_path=Path(args.decoded_log),
-        tx_hash=args.tx_hash,
-        anvil_url=args.anvil_url,
-        rpc_url=args.rpc_url,
-        gas_limit=args.gas_limit,
-    )
-
-
-if __name__ == "__main__":
-    main()

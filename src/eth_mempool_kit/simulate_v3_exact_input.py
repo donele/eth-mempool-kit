@@ -1,9 +1,8 @@
-import argparse
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from web3 import Web3
 
 from .decode_mempool import _decode_input_structured
@@ -12,7 +11,6 @@ from .simulate_v3_exact_input_single import (
     ERC20_ABI,
     V3_FACTORY_ABI,
     V3_POOL_ABI,
-    V3_QUOTER_ABI,
     UNISWAP_V3_FACTORY,
     UNISWAP_V3_QUOTER,
     _derive_rpc_url,
@@ -27,7 +25,20 @@ from .simulate_v3_exact_input_single import (
 )
 
 
-load_dotenv(override=True)
+load_dotenv(find_dotenv(usecwd=True), override=True)
+
+V3_QUOTER_EXACT_INPUT_ABI = [
+    {
+        "inputs": [
+            {"internalType": "bytes", "name": "path", "type": "bytes"},
+            {"internalType": "uint256", "name": "amountIn", "type": "uint256"},
+        ],
+        "name": "quoteExactInput",
+        "outputs": [{"internalType": "uint256", "name": "amountOut", "type": "uint256"}],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    }
+]
 
 
 @dataclass
@@ -95,7 +106,7 @@ def _get_v3_pool_address(w3: Web3, token_in: str, token_out: str, fee: int) -> s
 
 def _quote_exact_input(w3: Web3, path_bytes: bytes, amount_in: int) -> int:
     quoter = w3.eth.contract(
-        address=Web3.to_checksum_address(UNISWAP_V3_QUOTER), abi=V3_QUOTER_ABI
+        address=Web3.to_checksum_address(UNISWAP_V3_QUOTER), abi=V3_QUOTER_EXACT_INPUT_ABI
     )
     return quoter.functions.quoteExactInput(path_bytes, amount_in).call()
 
@@ -310,49 +321,3 @@ def simulate_v3_exact_input(
         print(f"sender_token_out_balance_after={_format_amount(post.sender_token_out_balance)}")
         print(f"sender_eth_balance_before={_format_amount(pre.sender_eth_balance)}")
         print(f"sender_eth_balance_after={_format_amount(post.sender_eth_balance)}")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "decoded_log",
-        nargs="?",
-        default=str(DEFAULT_DECODED_LOG),
-        help="decoded transaction log; defaults to script/decoded_20260501_1528.log",
-    )
-    parser.add_argument(
-        "--tx-hash",
-        help="target transaction hash; when omitted, simulate every exactInput entry in the decoded log",
-    )
-    parser.add_argument(
-        "--anvil-url",
-        default=os.getenv("ANVIL_URL", "http://127.0.0.1:8545"),
-        help="Anvil RPC URL",
-    )
-    parser.add_argument(
-        "--rpc-url",
-        default=_derive_rpc_url(),
-        help="upstream RPC URL used to fetch the original tx and reset Anvil",
-    )
-    parser.add_argument(
-        "--gas-limit",
-        type=int,
-        default=2_000_000,
-        help="gas limit used for the replay transaction",
-    )
-    args = parser.parse_args()
-
-    if not args.rpc_url:
-        raise SystemExit("Missing --rpc-url and could not derive RPC_URL from environment")
-
-    simulate_v3_exact_input(
-        decoded_log_path=Path(args.decoded_log),
-        tx_hash=args.tx_hash,
-        anvil_url=args.anvil_url,
-        rpc_url=args.rpc_url,
-        gas_limit=args.gas_limit,
-    )
-
-
-if __name__ == "__main__":
-    main()

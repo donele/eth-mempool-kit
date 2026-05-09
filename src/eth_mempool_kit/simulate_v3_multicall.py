@@ -1,10 +1,9 @@
-import argparse
 import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from eth_abi import decode
 from web3 import Web3
 
@@ -31,7 +30,7 @@ from .simulate_v3_exact_input_single import (
 )
 
 
-load_dotenv(override=True)
+load_dotenv(find_dotenv(usecwd=True), override=True)
 
 TX_HASH_RE = re.compile(r"TRANSACTION HASH:\s*([0-9a-fA-Fx]+)")
 ROUTER_RE = re.compile(r"^router=(.+)$")
@@ -104,7 +103,13 @@ def _parse_multicall_log(log_path: Path) -> list[MulticallLogEntry]:
     return entries
 
 
-def _decode_multicall_payload(tx_input: str) -> tuple[int | None, list[bytes]]:
+def _decode_multicall_payload(tx_input) -> tuple[int | None, list[bytes]]:
+    if isinstance(tx_input, (bytes, bytearray)):
+        tx_input = "0x" + bytes(tx_input).hex()
+    elif hasattr(tx_input, "hex"):
+        hex_value = tx_input.hex()
+        tx_input = hex_value if hex_value.startswith("0x") else f"0x{hex_value}"
+
     if not isinstance(tx_input, str) or not tx_input.startswith("0x"):
         raise RuntimeError("Unexpected multicall tx input encoding")
 
@@ -303,49 +308,3 @@ def simulate_v3_multicall(
         print(f"sender_token_out_balance_after={_format_amount(post.sender_token_out_balance)}")
         print(f"sender_eth_balance_before={_format_amount(pre.sender_eth_balance)}")
         print(f"sender_eth_balance_after={_format_amount(post.sender_eth_balance)}")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "decoded_log",
-        nargs="?",
-        default=str(DEFAULT_DECODED_LOG),
-        help="decoded transaction log; defaults to script/decoded_20260501_1528.log",
-    )
-    parser.add_argument(
-        "--tx-hash",
-        help="target transaction hash; when omitted, simulate every multicall entry in the decoded log",
-    )
-    parser.add_argument(
-        "--anvil-url",
-        default=os.getenv("ANVIL_URL", "http://127.0.0.1:8545"),
-        help="Anvil RPC URL",
-    )
-    parser.add_argument(
-        "--rpc-url",
-        default=_derive_rpc_url(),
-        help="upstream RPC URL used to fetch the original tx and reset Anvil",
-    )
-    parser.add_argument(
-        "--gas-limit",
-        type=int,
-        default=2_000_000,
-        help="gas limit used for the replay transaction",
-    )
-    args = parser.parse_args()
-
-    if not args.rpc_url:
-        raise SystemExit("Missing --rpc-url and could not derive RPC_URL from environment")
-
-    simulate_v3_multicall(
-        decoded_log_path=Path(args.decoded_log),
-        tx_hash=args.tx_hash,
-        anvil_url=args.anvil_url,
-        rpc_url=args.rpc_url,
-        gas_limit=args.gas_limit,
-    )
-
-
-if __name__ == "__main__":
-    main()
