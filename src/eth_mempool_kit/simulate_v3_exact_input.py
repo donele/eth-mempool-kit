@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 from web3 import Web3
 
-from .decode_mempool import _decode_input_structured
+from .decode_lib import _decode_input_structured
 from .simulate_v3_exact_input_single import (
     DEFAULT_DECODED_LOG,
     ERC20_ABI,
@@ -180,7 +180,12 @@ def _select_exact_input_entries(log_entries, tx_hash: str | None):
                 return [entry]
         raise RuntimeError(f"Transaction hash not found in decoded log: {normalized}")
 
-    selected = [entry for entry in log_entries if entry.decoded_method == "exactInput"]
+    selected = [
+        entry
+        for entry in log_entries
+        if entry.decoded_method == "exactInput"
+        or getattr(entry, "selector", None) in EXACT_INPUT_SELECTORS
+    ]
     if not selected:
         raise RuntimeError("No exactInput entry found in decoded log")
     return selected
@@ -321,3 +326,4 @@ def simulate_v3_exact_input(
         print(f"sender_token_out_balance_after={_format_amount(post.sender_token_out_balance)}")
         print(f"sender_eth_balance_before={_format_amount(pre.sender_eth_balance)}")
         print(f"sender_eth_balance_after={_format_amount(post.sender_eth_balance)}")
+EXACT_INPUT_SELECTORS = {"0x09b81346", "0xc04b8d59", "0xb858183f"}

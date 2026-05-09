@@ -8,6 +8,8 @@ from dotenv import find_dotenv, load_dotenv
 from web3 import Web3
 import yaml
 
+from .decode_lib import _decode_input
+
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 DEFAULT_INPUT = Path("filtered_20260501_1528.log")
@@ -193,6 +195,7 @@ def run() -> None:
                 out.write(f"queue_size=0 avg_lookups_per_sec={avg_lookups_per_sec:.2f}\n")
                 out.write(f"router={router_labels[to_addr_normalized]}\n")
                 out.write(f"{tx}\n")
+                out.write(f"{_decode_input(tx.get('input'))}\n")
                 if args.max_results > 0 and matched >= args.max_results:
                     print(
                         f"Reached max results ({args.max_results}); stopping early."

@@ -157,7 +157,7 @@ The clean separation is:
 
 1. `read_mempool_queue.py -f`
    - capture candidate transactions
-2. `decode_transactions.py`
+2. filtered logs with `decoded_input: selector=...` lines
    - inspect and decode calldata
 3. `estimate_arb.py`
    - rough screen for promising routes
@@ -223,7 +223,7 @@ Use the same parsing style as `estimate_arb.py`:
   - `input`
   - gas fields if needed
 
-Then decode with `decode_mempool._decode_input_structured(...)`.
+Then decode with `decode_lib._decode_input_structured(...)`.
 
 Reject unless:
 

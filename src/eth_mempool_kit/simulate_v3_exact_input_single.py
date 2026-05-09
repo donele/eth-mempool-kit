@@ -6,7 +6,7 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 from web3 import Web3
 
-from .decode_mempool import _decode_input_structured
+from .decode_lib import _decode_input_structured
 
 
 load_dotenv(find_dotenv(usecwd=True), override=True)
@@ -15,6 +15,8 @@ DEFAULT_DECODED_LOG = Path(__file__).with_name("decoded_20260501_1528.log")
 TX_HASH_RE = re.compile(r"TRANSACTION HASH:\s*([0-9a-fA-Fx]+)")
 ROUTER_RE = re.compile(r"^router=(.+)$")
 METHOD_RE = re.compile(r"^decoded_method:\s*(.+)$")
+SELECTOR_RE = re.compile(r"^decoded_input:\s*selector=(0x[0-9a-fA-F]+)")
+EXACT_INPUT_SINGLE_SELECTORS = {"0x04e45aaf", "0x414bf389"}
 
 UNISWAP_V3_ROUTER = "0xe592427a0aece92de3edee1f18e0157c05861564"
 UNISWAP_V3_ROUTER_02 = "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45"
@@ -137,6 +139,7 @@ class DecodedLogEntry:
     tx_hash_line: str
     router: str | None = None
     decoded_method: str | None = None
+    selector: str | None = None
 
 
 @dataclass
@@ -211,6 +214,10 @@ def _parse_decoded_log(log_path: Path) -> list[DecodedLogEntry]:
             if method_match:
                 current.decoded_method = method_match.group(1).strip()
                 continue
+            selector_match = SELECTOR_RE.match(line)
+            if selector_match:
+                current.selector = selector_match.group(1).lower()
+                continue
 
     return entries
 
@@ -233,7 +240,12 @@ def _select_entries(log_entries: list[DecodedLogEntry], tx_hash: str | None) -> 
     if tx_hash is not None:
         return [_select_entry(log_entries, tx_hash)]
 
-    selected = [entry for entry in log_entries if entry.decoded_method == "exactInputSingle"]
+    selected = [
+        entry
+        for entry in log_entries
+        if entry.decoded_method == "exactInputSingle"
+        or entry.selector in EXACT_INPUT_SINGLE_SELECTORS
+    ]
     if not selected:
         raise ValueError("No exactInputSingle entry found in decoded log")
     return selected

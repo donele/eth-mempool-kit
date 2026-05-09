@@ -3,8 +3,7 @@ pyproject.toml
 src/eth_mempool_kit/__init__.py
 src/eth_mempool_kit/batch_replay_table.py
 src/eth_mempool_kit/decode_config.yaml
-src/eth_mempool_kit/decode_mempool.py
-src/eth_mempool_kit/decode_transactions.py
+src/eth_mempool_kit/decode_lib.py
 src/eth_mempool_kit/estimate_arb.py
 src/eth_mempool_kit/filter_from_erigon.py
 src/eth_mempool_kit/read_mempool.py

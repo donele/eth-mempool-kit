@@ -11,6 +11,8 @@ from dotenv import find_dotenv, load_dotenv
 from web3 import AsyncWeb3, WebSocketProvider
 import yaml
 
+from .decode_lib import _decode_input
+
 
 load_dotenv(find_dotenv(usecwd=True), override=True)
 WSS_URL = os.getenv("WSS_URL")
@@ -179,6 +181,7 @@ async def _consume_tx_hashes(
                 # tx.from is recovered and validated by the node from (r, s, v)
 
                 print(tx)
+                print(_decode_input(tx.get("input")))
                 if filter_known_routers:
                     sys.stdout.flush()
             except Exception as err:

@@ -30,8 +30,8 @@ python -m pip install -e . --no-build-isolation
 
 2. Run installed console commands:
 ```bash
-decode-transactions /path/to/log.txt
 read-mempool-queue -f
+simulate filtered.log
 ```
 
 ## Current Repository Layout
@@ -63,10 +63,8 @@ Main scripts in [script/](/home/jdlee/repos/eth-mempool-kit/script):
   - simple pending-tx reader
 - [read_mempool_queue.py](/home/jdlee/repos/eth-mempool-kit/script/read_mempool_queue.py)
   - queue-based pending-tx reader with worker consumers
-- [decode_mempool.py](/home/jdlee/repos/eth-mempool-kit/script/decode_mempool.py)
-  - decode library helpers and router/selector config loading (imported by other tools)
-- [decode_transactions.py](/home/jdlee/repos/eth-mempool-kit/script/decode_transactions.py)
-  - offline decoder for captured transaction logs
+- [decode_lib.py](/home/jdlee/repos/eth-mempool-kit/src/eth_mempool_kit/decode_lib.py)
+  - decode library helpers and router/selector config loading (imported by readers/simulators)
 - [estimate_arb.py](/home/jdlee/repos/eth-mempool-kit/script/estimate_arb.py)
   - rough V2 estimator and initial V3 quote-based estimator
 - [decode_config.yaml](/home/jdlee/repos/eth-mempool-kit/script/decode_config.yaml)
@@ -342,7 +340,7 @@ The project is ultimately bounded by a very small reaction window.
 - Queueing/backpressure
 - Python vs C++
 - GC pauses, logging overhead
-- Observed offline batch decode throughput: `2546` tx in about `2s` via `decode_transactions.py` (about `0.8 ms/tx`, approximately `1 ms/tx`) on local data; this is decode-only and not end-to-end reaction latency
+- Observed offline batch decode throughput: `2546` tx in about `2s` (about `0.8 ms/tx`, approximately `1 ms/tx`) on local data; this is decode-only and not end-to-end reaction latency
 - Worst case rough range: `10 - 500 ms`
 
 ### Simulation

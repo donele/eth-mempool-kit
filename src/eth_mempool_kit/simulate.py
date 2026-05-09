@@ -15,7 +15,7 @@ load_dotenv(find_dotenv(usecwd=True), override=True)
 def _run_section(
     title: str,
     fn,
-    decoded_log_path: Path,
+    filtered_log_path: Path,
     tx_hash: str | None,
     anvil_url: str,
     rpc_url: str,
@@ -23,7 +23,7 @@ def _run_section(
 ) -> None:
     print(f"=== {title} ===")
     fn(
-        decoded_log_path=decoded_log_path,
+        decoded_log_path=filtered_log_path,
         tx_hash=tx_hash,
         anvil_url=anvil_url,
         rpc_url=rpc_url,
@@ -34,12 +34,12 @@ def _run_section(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run v3 replay simulation for exactInputSingle, exactInput, and multicall in one command"
+        description="Run v3 replay simulation for exactInputSingle, exactInput, and multicall from filtered.log"
     )
     parser.add_argument(
-        "decoded_log",
+        "filtered_log",
         type=Path,
-        help="decoded transaction log file",
+        help="filtered transaction log file (with decoded_input selector lines)",
     )
     parser.add_argument(
         "--tx-hash",
@@ -72,7 +72,7 @@ def main() -> None:
     _run_section(
         "simulate_v3_exact_input_single",
         simulate_exact_input_single,
-        decoded_log_path=args.decoded_log,
+        filtered_log_path=args.filtered_log,
         tx_hash=args.tx_hash,
         anvil_url=args.anvil_url,
         rpc_url=args.rpc_url,
@@ -81,7 +81,7 @@ def main() -> None:
     _run_section(
         "simulate_v3_exact_input",
         simulate_v3_exact_input,
-        decoded_log_path=args.decoded_log,
+        filtered_log_path=args.filtered_log,
         tx_hash=args.tx_hash,
         anvil_url=args.anvil_url,
         rpc_url=args.rpc_url,
@@ -90,7 +90,7 @@ def main() -> None:
     _run_section(
         "simulate_v3_multicall",
         simulate_v3_multicall,
-        decoded_log_path=args.decoded_log,
+        filtered_log_path=args.filtered_log,
         tx_hash=args.tx_hash,
         anvil_url=args.anvil_url,
         rpc_url=args.rpc_url,

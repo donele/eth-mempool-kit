@@ -111,7 +111,7 @@ For each transaction record, it parses:
 - the transaction `value`
 - the calldata from the logged `input: HexBytes('0x...')`
 
-It then uses the local decoder helpers in `decode_mempool.py` to decode the calldata into structured swap arguments.
+It then uses the local decoder helpers in `decode_lib.py` to decode the calldata into structured swap arguments.
 
 ### V2 Support Scope
 
@@ -302,7 +302,7 @@ For this transaction, `estimate_arb.py` performs the following steps.
    - `to = 0xd9e1...`
    - `value = 0`
    - `input = 0x38ed1739...`
-2. Decode the calldata using `decode_mempool._decode_input_structured(...)`.
+2. Decode the calldata using `decode_lib._decode_input_structured(...)`.
 3. Recognize the router as SushiSwap.
 4. Infer the comparison venue as Uniswap V2.
    - it means the estimator compares two separate V2-style venues for the same token pair
@@ -589,7 +589,7 @@ The reason `exactInputSingle` is a good first V3 target is that steps 2 through 
 For this transaction, `estimate_arb.py` does the following:
 
 1. Parse the log line and extract `to`, `value`, and `input`.
-2. Decode the calldata using `decode_mempool._decode_input_structured(...)`.
+2. Decode the calldata using `decode_lib._decode_input_structured(...)`.
 3. Recognize the router as `Uniswap V3`.
 4. Extract the single-hop swap parameters:
    - `tokenIn`

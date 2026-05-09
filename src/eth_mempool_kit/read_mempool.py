@@ -6,6 +6,7 @@ import time
 from dotenv import find_dotenv, load_dotenv
 from web3 import AsyncWeb3, WebSocketProvider
 
+from .decode_lib import _decode_input
 
 load_dotenv(find_dotenv(usecwd=True), override=True)
 WSS_URL = os.getenv("WSS_URL")
@@ -120,6 +121,7 @@ async def stream_pending_transactions() -> None:
                     # tx.from is recovered and validated by the node from (r, s, v)
 
                     print(tx)
+                    print(_decode_input(tx.get("input")))
                 except Exception as err:
                     if _is_rate_limit_error(err):
                         rate_limit_errors += 1
