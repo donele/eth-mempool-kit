@@ -4,13 +4,13 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from web3 import Web3
 
 from .decode_mempool import _decode_input_structured
 
 
-load_dotenv(override=True)
+load_dotenv(find_dotenv(usecwd=True), override=True)
 
 TX_HASH_PREFIX = "TRANSACTION HASH:"
 ROUTER_PREFIX = "router="

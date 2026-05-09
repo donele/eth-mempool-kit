@@ -7,12 +7,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from web3 import AsyncWeb3, WebSocketProvider
 import yaml
 
 
-load_dotenv(override=True)
+load_dotenv(find_dotenv(usecwd=True), override=True)
 WSS_URL = os.getenv("WSS_URL")
 MAX_TX_LOOKUPS_PER_SEC = float(os.getenv("MAX_TX_LOOKUPS_PER_SEC", "48"))
 LOOKUP_INTERVAL_SECONDS = (

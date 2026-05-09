@@ -85,7 +85,7 @@ anvil --fork-url https://YOUR_RPC_URL
 This tells Anvil to:
 
 - fetch Ethereum state from the upstream RPC
-- expose a local fork at `http://127.0.0.1:8545`
+- expose a local fork at `http://127.0.0.1:8547`
 
 You can also pin a block:
 
@@ -138,7 +138,7 @@ A practical setup might use:
 
 ```bash
 RPC_URL=https://...
-ANVIL_URL=http://127.0.0.1:8545
+ANVIL_URL=http://127.0.0.1:8547
 FORK_BLOCK_NUMBER=22400000
 ```
 
@@ -208,7 +208,7 @@ Example:
 python simulate_v3_exact_input_single.py \
   script/filtered_20260501_1528.log \
   --tx-hash 0x35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f \
-  --anvil-url http://127.0.0.1:8545
+  --anvil-url http://127.0.0.1:8547
 ```
 
 ### 2. Load The Victim Transaction From The Log
@@ -792,7 +792,7 @@ Run the simulator:
 python simulate_v3_exact_input_single.py \
   script/filtered_20260501_1528.log \
   --tx-hash 0x35f07f52e188da00092ebfca9fe7f1ba795d8a729f267bc80cf6fad24438493f \
-  --anvil-url http://127.0.0.1:8545
+  --anvil-url http://127.0.0.1:8547
 ```
 
 Expected output shape:
@@ -813,6 +813,15 @@ rough_net_profit=...
 ```
 
 ## Batch Replay Table
+
+You can generate the markdown table directly from batch replay logs:
+
+```bash
+batch-replay-table \
+  simulate_v3_exact_input_single.log \
+  simulate_v3_exact_input.log \
+  simulate_v3_multicall.log
+```
 
 The current batch logs under `script/20260501_1528/` are aggregate outputs:
 

@@ -1,0 +1,4 @@
+python-dotenv>=1.0.0
+web3>=7.0.0
+eth-abi>=5.0.0
+PyYAML>=6.0.0

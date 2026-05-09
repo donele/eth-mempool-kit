@@ -4,13 +4,13 @@ import random
 import time
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from eth_abi import decode
 from web3 import AsyncWeb3, WebSocketProvider
 import yaml
 
 
-load_dotenv(override=True)
+load_dotenv(find_dotenv(usecwd=True), override=True)
 WSS_URL = os.getenv("WSS_URL")
 RUN_SECONDS = 180
 MAX_TX_LOOKUPS_PER_SEC = float(os.getenv("MAX_TX_LOOKUPS_PER_SEC", "8"))

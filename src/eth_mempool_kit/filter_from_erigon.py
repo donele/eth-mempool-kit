@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from web3 import Web3
 import yaml
 
@@ -131,7 +131,7 @@ def run() -> None:
     if args.max_results < 0:
         raise ValueError("--max-results/-n must be >= 0")
 
-    load_dotenv(override=False)
+    load_dotenv(find_dotenv(usecwd=True), override=False)
 
     rpc_url = args.rpc_url
     if not rpc_url:

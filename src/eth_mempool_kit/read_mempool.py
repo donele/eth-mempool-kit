@@ -3,11 +3,11 @@ import os
 import random
 import time
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from web3 import AsyncWeb3, WebSocketProvider
 
 
-load_dotenv(override=True)
+load_dotenv(find_dotenv(usecwd=True), override=True)
 WSS_URL = os.getenv("WSS_URL")
 RUN_SECONDS = 180
 MAX_TX_LOOKUPS_PER_SEC = float(os.getenv("MAX_TX_LOOKUPS_PER_SEC", "8"))
